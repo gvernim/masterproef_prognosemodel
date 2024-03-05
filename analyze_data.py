@@ -10,20 +10,6 @@ from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.stattools import kpss
 from statsmodels.tsa.seasonal import seasonal_decompose
 
-#Determine lost and broken data
-def show_missing_data_1(df):
-    print('Data contains NaN values: ', df.isna().values.any())
-
-def find_missing_data(df, col_number):
-    periods = [[]]
-
-    rolling_mean = df[df.columns[col_number]].rolling(7).mean()
-
-    print('The following periods contain possible faulty data:')
-
-def show_missing_data_2(df):
-    print('% missing data: \n', 100*df.isnull().sum()/len(df))
-
 
 #Decomposition analysis
 def analyze_decomp_column(df, col_number):

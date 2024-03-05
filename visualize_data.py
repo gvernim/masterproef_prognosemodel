@@ -6,7 +6,7 @@ import seaborn as sns
 
 #Alle columns tonen, slechte onduidelijke representatie
 def visualize_columns(df):
-    df.plot(x='TimeStamp',subplots=True)
+    df.plot(subplots=True)
     plt.tight_layout()
     plt.show()
 
