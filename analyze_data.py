@@ -10,6 +10,10 @@ from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.stattools import kpss
 from statsmodels.tsa.seasonal import seasonal_decompose
 
+#Correlation function
+def correlation_between_columns(df, col_number_1, col_number_2):
+    print('Correlation between ', df.columns[col_number_1], ' and ', df.columns[col_number_2],': ' , df[df.columns[col_number_1]].corr(df[df.columns[col_number_2]]))
+
 
 #Decomposition analysis
 def analyze_decomp_column(df, col_number):
@@ -31,20 +35,13 @@ def analyze_decomp_column_period_start_length(df, col_number, start_period, leng
     plt.show()
 
 #Stationary analysis functions
+#ACF for determing d-value
 def show_plot_acf(df, col_number):
     fig, ax = plt.subplots(figsize=(10, 5))
     plot_acf(df[df.columns[col_number]], ax=ax)
     plt.xlabel('Lag')
     plt.ylabel('Autocorrelation')
     plt.title('Autocorrelation Function (ACF)')
-    plt.show()
-
-# Plot PACF
-    fig, ax = plt.subplots(figsize=(10, 5))
-    plot_pacf(df[df.columns[col_number]], ax=ax)
-    plt.xlabel('Lag')
-    plt.ylabel('Partial Autocorrelation')
-    plt.title('Partial Autocorrelation Function (PACF)')
     plt.show()
 
 def show_plot_acf_1_diff(df, col_number):
@@ -54,6 +51,8 @@ def show_plot_acf_1_diff(df, col_number):
 
     ax2 = f.add_subplot(122)
     plot_acf(df[df.columns[col_number]].diff().dropna(), ax = ax2)
+    plt.ylabel('Autocorrelation 1 Diff')
+    plt.title('Autocorrelation Function (ACF)')
 
     plt.show()
 
@@ -64,41 +63,80 @@ def show_plot_acf_2_diff(df, col_number):
 
     ax2 = f.add_subplot(122)
     plot_acf(df[df.columns[col_number]].diff().diff().dropna(), ax = ax2)
+    plt.ylabel('Autocorrelation 2 Diff')
+    plt.title('Autocorrelation Function (ACF)')
 
     plt.show()
 
+#Making sure of d-parameter
 def adfuller_test(df, col_number):
     result = adfuller(df[df.columns[col_number]], autolag="AIC")
     print(f"Test Statistic: {result[0]}")
     print(f"P-value: {result[1]}")
 
     result = adfuller(df[df.columns[col_number]].diff().dropna(), autolag="AIC")
-    print(f"Test Statistic: {result[0]}")
+    print(f"Test Statistic 1 diff: {result[0]}")
     print(f"P-value: {result[1]}")
 
     result = adfuller(df[df.columns[col_number]].diff().diff().dropna(), autolag="AIC")
-    print(f"Test Statistic: {result[0]}")
+    print(f"Test Statistic 2 diff: {result[0]}")
     print(f"P-value: {result[1]}")
 
+#Another metric for the d-parameter
 def kpss_test(df, col_number):
     result = kpss(df[df.columns[col_number]])
     print(f"Test Statistic: {result[0]}")
     print(f"P-value: {result[1]}")
 
     result = kpss(df[df.columns[col_number]].diff().dropna())
-    print(f"Test Statistic: {result[0]}")
+    print(f"Test Statistic 1 diff: {result[0]}")
     print(f"P-value: {result[1]}")
 
     result = kpss(df[df.columns[col_number]].diff().diff().dropna())
-    print(f"Test Statistic: {result[0]}")
+    print(f"Test Statistic 2 diff: {result[0]}")
     print(f"P-value: {result[1]}")
 
+def show_plot_pacf(df, col_number):
+    # Plot PACF
+    fig, ax = plt.subplots(figsize=(10, 5))
+    plot_pacf(df[df.columns[col_number]], ax=ax)
+    plt.xlabel('Lag')
+    plt.ylabel('Partial Autocorrelation')
+    plt.title('Partial Autocorrelation Function (PACF)')
+    plt.show()
+
+def show_plot_pacf_1_diff(df, col_number):
+    f= plt.figure()
+    ax1 = f.add_subplot(121)
+    ax1.plot(df[df.columns[col_number]].diff())
+
+    ax2 = f.add_subplot(122)
+    plot_pacf(df[df.columns[col_number]].diff().dropna(), ax = ax2)
+    plt.ylabel('Partial Autocorrelation 1 Diff')
+    plt.title('Partial Autocorrelation Function (PACF)')
+
+    plt.show()
+
+def show_plot_pacf_2_diff(df, col_number):
+    f= plt.figure()
+    ax1 = f.add_subplot(121)
+    ax1.plot(df[df.columns[col_number]].diff().diff())
+
+    ax2 = f.add_subplot(122)
+    plot_pacf(df[df.columns[col_number]].diff().diff().dropna(), ax = ax2)
+    plt.ylabel('Partial Autocorrelation 2 Diff')
+    plt.title('Partial Autocorrelation Function (PACF)')
+
+    plt.show()
+
+#Extra
 def analyze_stat_column(df, col_number):
     rolling_mean = df[df.columns[col_number]].rolling(96).mean()
     rolling_std = df[df.columns[col_number]].rolling(96).std()
     adft = adfuller(df[df.columns[col_number]],autolag="AIC")
     stat_df = pd.DataFrame({"Values":[adft[0],adft[1],adft[2],adft[3], adft[4]['1%'], adft[4]['5%'], adft[4]['10%']]  , "Metric":["Test Statistics","p-value","No. of lags used","Number of observations used", "critical value (1%)", "critical value (5%)", "critical value (10%)"]})
     print(stat_df)
+    sns.set_theme()
     sns.lineplot(data=df, x='TimeStamp', y = df.columns[col_number])
     sns.lineplot(rolling_mean, color="red", label="Rolling Mean")
     sns.lineplot(rolling_std, color="black", label = "Rolling Standard Deviation")
@@ -113,6 +151,7 @@ def analyze_stat_column_period_start_end(df, col_number, start_period, end_perio
     adft = adfuller(df[df.columns[col_number]],autolag="AIC")
     stat_df = pd.DataFrame({"Values":[adft[0],adft[1],adft[2],adft[3], adft[4]['1%'], adft[4]['5%'], adft[4]['10%']]  , "Metric":["Test Statistics","p-value","No. of lags used","Number of observations used", "critical value (1%)", "critical value (5%)", "critical value (10%)"]})
     print(stat_df)
+    sns.set_theme()
     sns.lineplot(data=df, x='TimeStamp', y = df.columns[col_number])
     sns.lineplot(rolling_mean, color="red", label="Rolling Mean")
     sns.lineplot(rolling_std, color="black", label = "Rolling Standard Deviation")
@@ -128,6 +167,7 @@ def analyze_stat_column_period_start_length(df, col_number, start_period, length
     adft = adfuller(df[df.columns[col_number]],autolag="AIC")
     stat_df = pd.DataFrame({"Values":[adft[0],adft[1],adft[2],adft[3], adft[4]['1%'], adft[4]['5%'], adft[4]['10%']]  , "Metric":["Test Statistics","p-value","No. of lags used","Number of observations used", "critical value (1%)", "critical value (5%)", "critical value (10%)"]})
     print(stat_df)
+    sns.set_theme()
     sns.lineplot(data=df, x='TimeStamp', y = df.columns[col_number])
     sns.lineplot(rolling_mean, color="red", label="Rolling Mean")
     sns.lineplot(rolling_std, color="black", label = "Rolling Standard Deviation")

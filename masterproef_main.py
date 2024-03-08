@@ -13,6 +13,7 @@ from statsmodels.tsa.seasonal import seasonal_decompose
 from sklearn.metrics import mean_squared_error
 
 #Import arima model
+from pmdarima.arima import auto_arima
 from statsmodels.tsa.arima.model import ARIMA
 from sklearn.metrics import mean_squared_error
 
@@ -21,17 +22,19 @@ import load_data
 import visualize_data
 import prepare_data
 import analyze_data
-import model_data
+import model_arima_data
 
 #User variables
 filename = 'Merelbeke Energie.csv'
 column_number = 0
+start_date_data = pd.to_datetime('2021-12-31 23:00', utc=True)
+end_date_data = pd.to_datetime('2023-12-31 23:00', utc=True)
     #Vorm tijdperiodes '2021-12-31 23:00:00+00:00' (Startdate of data)
 start_period = pd.to_datetime('2021-12-31 23:00:00+00:00')
 end_period = pd.to_datetime('2022-12-31 23:00:00+00:00')
 length_period = datetime.timedelta(days=90)
 
-split_date = pd.to_datetime('2023-05-01 15:00:00+00:00')
+split_date = pd.to_datetime('2023-10-01 15:00:00+00:00')
 
 #Data headers with number in brackets
     #Timestamp[0] ; PV Productie[1] ; NA Aankomst / ActiveEnergyConsumption(Consumptie)[2] ; NA Aankomst / ActiveEnergyProduction(Productie)[3] ;
@@ -62,61 +65,121 @@ del df['SmartCharging / meter-001 / ActiveEnergyImportTarrif2(Consumptie)']
 
 #2. Visualization data
 
-visualize_data.visualize_columns(df)
+#visualize_data.visualize_columns(df)
+#analyze_data.correlation_between_columns(df, 0, 7)
+#analyze_data.correlation_between_columns(df, 1, 8)
+#analyze_data.correlation_between_columns(df, 2, 7)
+#analyze_data.correlation_between_columns(df, 3, 7)
+#analyze_data.correlation_between_columns(df, 4, 8)
+#analyze_data.correlation_between_columns(df, 5, 8)
+#analyze_data.correlation_between_columns(df, 6, 8)
+
 #visualize_data.visualize_column(df, column_number)
 #visualize_data.visualize_column_period_start_end(df, column_number, start_period, end_period)
 #visualize_data.visualize_column_period_start_length(df, column_number, start_period, length_period)
 
-for x in range(len(df.columns)):
-    visualize_data.visualize_column(df, x)
+#for x in range(len(df.columns)):
+#    visualize_data.visualize_column(df, x)
 
 #End visualization data
 
 #3. Data preparation
 
-#Data does not contain NaN values
-prepare_data.show_missing_data(df)
+#Data does not contain NaN values by default for incomplete records
+#prepare_data.show_missing_data(df)
 
-#Find faulty data (Separate function, since it might be incorrect)
-df_dates, df_periods = prepare_data.find_missing_data(df, column_number)
+#Select column
+df_col = df[df.columns[column_number]]
+
+#Adapted per column, 
+if column_number==1:
+    rolling_records = 68
+else:
+    rolling_records = 68
+
+#Find faulty data
+df_dates, df_periods = prepare_data.find_missing_data_periods(df_col, rolling_records)
+df_dates_points = prepare_data.find_missing_data_points(df_col)
+
+#print('The following periods contain possible faulty data: \n', df_periods)
+
+#Add both broken periods and points together
+df_dates['broken_record'] = df_dates['broken_record'] | df_dates_points['broken_record']
+
+#sns.set_theme()
+#sns.lineplot(df_dates[df.columns[column_number]])
+#sns.lineplot(df_dates['broken_record'], color="red")
+#sns.scatterplot(df_dates_points[df.columns[column_number]].where(df_dates['broken_record']), color="red")
+#plt.show()
 
 #After check replace with NaN values
-df = prepare_data.convert_broken_data_to_nan(df, column_number, df_dates, df_periods)
+df_col = prepare_data.convert_broken_records_to_nan(df, column_number, df_dates, df_periods)
+
+#Show percentage of missing data
+prepare_data.show_missing_data_column(df, column_number)
+
+df_period, start, stop = prepare_data.find_largest_period_without_nan(df_col)
+
+#prepare_data.find_outliers_IQR(df.iloc[start:stop], column_number)
+
+#sns.set_theme()
+#sns.lineplot(df_dates[df.columns[column_number]])
+#plt.show()
+
+#df_imputed = prepare_data.replace_broken_records_stl(df, column_number, df_period)
+
+#prepare_data.show_missing_data_column(df, column_number)
 
 #Prepare data for all columns
 #for x in range(len(df.columns)):
     #Find faulty data (Separate function, since it might be incorrect)
-#    df_dates, df_periods = prepare_data.find_missing_data(df, x)
+#    df_dates, df_periods = prepare_data.find_missing_data_periods(df, x)
+#    print('The following periods contain possible faulty data: \n', df_periods)
+#    df_dates_points = prepare_data.find_missing_data_points(df, column_number)
+#    df_dates['broken_record'] = df_dates['broken_record'] | df_dates_points['broken_record']
 
     #After check replace with NaN values
-#    df = prepare_data.convert_faulty_data_to_nan(df, x, df_dates, df_periods)
+#    df = prepare_data.convert_broken_records_to_nan(df, x, df_dates, df_periods)
+#    sns.set_theme()
+#    sns.lineplot(df_dates[df.columns[column_number]])
+#    plt.show()
 
-prepare_data.show_missing_data(df)
+#prepare_data.show_missing_data(df)
 
 #End Data preparation
 
 #4. Analysis
 
 #Decomposition analysis
-#analyze_data.analyze_decomp_column(df, column_number)
+#analyze_data.analyze_decomp_column(df.iloc[start:stop-1], column_number)
 #analyze_data.analyze_decomp_column_period_start_end(df, column_number, start_period, end_period)
 #analyze_data.analyze_decomp_column_period_start_length(df, column_number, start_period, length_period)
 
 
 #Stationary analysis
-#analyze_data.show_plot_acf(df, column_number)
-#analyze_data.show_plot_acf_1_diff(df, column_number)
-#analyze_data.show_plot_acf_2_diff(df, column_number)
-#analyze_data.adfuller_test(df, column_number)
-#analyze_data.kpss_test(df, column_number)
+    #Determine d-parameter => Which lag is largest (If unclear check differencing ACF)
+    #Determine q-parameter => Number of Lags outside of blue zone
+#analyze_data.show_plot_acf(df.iloc[start:stop-1], column_number)
+#analyze_data.show_plot_acf_1_diff(df.iloc[start:stop-1], column_number)
+#analyze_data.show_plot_acf_2_diff(df.iloc[start:stop-1], column_number)
 
-#analyze_data.analyze_stat_column(df, column_number)
+    #Double-check d-parameter (For ADF: Under 0.05)
+#analyze_data.adfuller_test(df.iloc[start:stop-1], column_number)
+#analyze_data.kpss_test(df.iloc[start:stop-1], column_number)
+
+    #Determine p-parameter => Which lag is largest (If unclear check next differential PACF)
+#analyze_data.show_plot_pacf(df.iloc[start:stop-1], column_number)
+#analyze_data.show_plot_pacf_1_diff(df.iloc[start:stop-1], column_number)
+#analyze_data.show_plot_pacf_2_diff(df.iloc[start:stop-1], column_number)
+
+#Extra functions (unused)
+#analyze_data.analyze_stat_column(df.iloc[start:stop-1], column_number)
 #analyze_data.analyze_stat_column_period_start_end(df, column_number, start_period, end_period)
 #analyze_data.analyze_stat_column_period_start_length(df, column_number, start_period, length_period)
 
 
-#Autocorrelation analysis
-#analyze_data.analyze_ac_column(df, column_number)
+#Autocorrelation analysis (unused)
+#analyze_data.analyze_ac_column(df.iloc[start:stop-1], column_number)
 #analyze_data.analyze_ac_column_period_start_end(df, column_number, start_period, end_period)
 #analyze_data.analyze_ac_column_period_start_length(df, column_number, start_period, length_period)
 
@@ -127,30 +190,38 @@ prepare_data.show_missing_data(df)
 
 #5. Model data preparation
 
-#train, test = model_data.split_data(df, column_number, split_date)
-#train, test = model_data.split_data_2(df, column_number, 0.33)
+#train, test = model_arima_data.split_data(df.iloc[start:stop-1], column_number, split_date)
+
+train, test = model_arima_data.split_data_2(df.iloc[start:stop-1], column_number, 0.33)
 
 #End Model data preparation
 
 #6. ARIMA Model
 
-#model = ARIMA(train, order=(1,1,1))
-#model.fit(train)
-#forecast = model.predict(test)
+#Function to determine parameters
+#model = auto_arima(train, m=96, seasonal=True, stepwise=True)
 
-#print(forecast)
+#Standard ARIMA Model
+order=(1,1,4)
+#1,1,4 AIC=       1,1,5: AIC=     1,2,3: AIC=
+model_fit, predictions = model_arima_data.execute_rolling_arima(train, test, order)
 
-#plt.plot(train, color = "black")
-#plt.plot(test, color = "red")
-#plt.plot(forecast, color = "blue")
-#plt.title("Train/Test split Data")
-#plt.ylabel(df.columns[column_number])
-#plt.xlabel('TimeStamp')
-#sns.set_theme()
-#plt.show()
 
-#rmse = sqrt(mean_squared_error(test,forecast))
-#print("RMSE: ", rmse)
+#Rolling Forecast ARIMA model
+#1,1,4 AIC=       1,1,5: AIC=     1,2,3: AIC=
+model_fit, predictions = model_arima_data.execute_rolling_arima(train, test, order)
+
+plt.plot(train, color = "black")
+plt.plot(test, color = "red")
+plt.plot(predictions, color = "blue")
+plt.title("Train/Test split Data")
+plt.ylabel(df.columns[column_number])
+plt.xlabel('TimeStamp')
+plt.show()
+
+#Evaluation model
+rmse = sqrt(mean_squared_error(test, predictions))
+print("RMSE: ", rmse)
 
 #End ARIMA Model
 
