@@ -27,14 +27,14 @@ import model_arima_data
 #User variables
 filename = 'Merelbeke Energie.csv'
 column_number = 0
-start_date_data = pd.to_datetime('2021-12-31 23:00', utc=True)
-end_date_data = pd.to_datetime('2023-12-31 23:00', utc=True)
+start_date_data = pd.to_datetime('2022-01-01 00:00:00+01:00')
+end_date_data = pd.to_datetime('2024-01-01 00:00:00+01:00')
     #Vorm tijdperiodes '2021-12-31 23:00:00+00:00' (Startdate of data)
-start_period = pd.to_datetime('2021-12-31 23:00:00+00:00')
-end_period = pd.to_datetime('2022-12-31 23:00:00+00:00')
+start_period = pd.to_datetime('2022-01-01 00:00:00+01:00')
+end_period = pd.to_datetime('2023-01-01 00:00:00+01:00')
 length_period = datetime.timedelta(days=90)
 
-split_date = pd.to_datetime('2023-10-01 15:00:00+00:00')
+split_date = pd.to_datetime('2023-10-01 16:00:00+01:00')
 
 #Data headers with number in brackets
     #Timestamp[0] ; PV Productie[1] ; NA Aankomst / ActiveEnergyConsumption(Consumptie)[2] ; NA Aankomst / ActiveEnergyProduction(Productie)[3] ;
@@ -45,6 +45,12 @@ split_date = pd.to_datetime('2023-10-01 15:00:00+00:00')
 #Start main
 #1. Load and format data
 df = load_data.load_data_in_df(filename)
+df_holidays = load_data.give_bank_holidays(start_date_data, end_date_data, True)
+print(df_holidays)
+df_holidays = load_data.give_bank_holidays_quarterly(start_date_data, end_date_data)
+print(df_holidays)
+df_holidays_hourly = load_data.give_bank_holidays_hourly(start_date_data, end_date_data)
+print(df_holidays_hourly)
 
 #Data headers with number in brackets after format
     #PV Productie[0] ; NA Aankomst / ActiveEnergyConsumption(Consumptie)[1] ; NA Aankomst / ActiveEnergyProduction(Productie)[2] ;
@@ -88,11 +94,14 @@ del df['SmartCharging / meter-001 / ActiveEnergyImportTarrif2(Consumptie)']
 #Data does not contain NaN values by default for incomplete records
 #prepare_data.show_missing_data(df)
 
-#Select column
+#Select column and make hourly version
 df_col = df[df.columns[column_number]]
+df_col_hour = load_data.change_quarterly_index_to_hourly(df_col)
+
+visualize_data.visualize_columns(df_col_hour)
 
 #Adapted per column, 
-if column_number==1:
+if column_number==0:
     rolling_records = 68
 else:
     rolling_records = 68
@@ -192,7 +201,7 @@ df_period, start, stop = prepare_data.find_largest_period_without_nan(df_col)
 
 #train, test = model_arima_data.split_data(df.iloc[start:stop-1], column_number, split_date)
 
-train, test = model_arima_data.split_data_2(df.iloc[start:stop-1], column_number, 0.33)
+#train, test = model_arima_data.split_data_2(df.iloc[start:stop-1], column_number, 0.33)
 
 #End Model data preparation
 
@@ -204,24 +213,24 @@ train, test = model_arima_data.split_data_2(df.iloc[start:stop-1], column_number
 #Standard ARIMA Model
 order=(1,1,4)
 #1,1,4 AIC=       1,1,5: AIC=     1,2,3: AIC=
-model_fit, predictions = model_arima_data.execute_rolling_arima(train, test, order)
+#model_fit, predictions = model_arima_data.execute_rolling_arima(train, test, order)
 
 
 #Rolling Forecast ARIMA model
 #1,1,4 AIC=       1,1,5: AIC=     1,2,3: AIC=
-model_fit, predictions = model_arima_data.execute_rolling_arima(train, test, order)
+#model_fit, predictions = model_arima_data.execute_rolling_arima(train, test, order)
 
-plt.plot(train, color = "black")
-plt.plot(test, color = "red")
-plt.plot(predictions, color = "blue")
-plt.title("Train/Test split Data")
-plt.ylabel(df.columns[column_number])
-plt.xlabel('TimeStamp')
-plt.show()
+#plt.plot(train, color = "black")
+#plt.plot(test, color = "red")
+#plt.plot(predictions, color = "blue")
+#plt.title("Train/Test split Data")
+#plt.ylabel(df.columns[column_number])
+#plt.xlabel('TimeStamp')
+#plt.show()
 
 #Evaluation model
-rmse = sqrt(mean_squared_error(test, predictions))
-print("RMSE: ", rmse)
+#rmse = sqrt(mean_squared_error(test, predictions))
+#print("RMSE: ", rmse)
 
 #End ARIMA Model
 
