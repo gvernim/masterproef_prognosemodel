@@ -8,6 +8,7 @@ import seaborn as sns
 from sklearn.linear_model import LinearRegression
 from sklearn.impute import KNNImputer
 from statsmodels.tsa.seasonal import STL
+from statsmodels.tsa.seasonal import MSTL
 from statsmodels.tsa.seasonal import seasonal_decompose
 
 #Determine if there is lost and broken data and the percentages
@@ -51,7 +52,7 @@ def find_outliers_IQR(df):
 
    IQR=q3-q1
 
-   outliers = df[((df<(q1-1.5*IQR)) | (df>(q3+1.5*IQR)))]
+   outliers = df[((df<(q1-4*IQR)) | (df>(q3+4*IQR)))]
 
    sns.set_theme()
    sns.lineplot(df)
@@ -102,7 +103,6 @@ def find_missing_data_periods(df, rolling_records=68):
     del df_dates['rolling_mean']
 
     #Show periods with broken data
-    print('The following periods contain possible faulty data: \n', df_periods)
 
     #sns.set_theme()
     #sns.lineplot(df_dates.iloc[:,0])
@@ -204,19 +204,14 @@ def replace_broken_records_knn(df, col_number, corr_col_number):
     plt.show()
     return df
 
-
-
-
-
-    #STL Decomposition
-def replace_broken_records_stl(df, col_number, df_period):
+    #Seasonal decompose Decomposition, does not work as required
+def replace_broken_records_seasonal_decompose(df, col_number):
 
     # Fill missing values in the time series
     imputed_indices = df[df[df.columns[col_number]].isna()].index
-    #imputed_indices = imputed_indices[df.columns[col_number]]
 
     # Apply STL decompostion
-    stl = STL(df_period, period=7)
+    stl = seasonal_decompose(df[df.columns[col_number]].interpolate(), period=96, model="multiplicative")
     res = stl.fit()
     res.plot()
     plt.show()
@@ -240,10 +235,134 @@ def replace_broken_records_stl(df, col_number, df_period):
     plt.figure(figsize=[12, 6])
     df[df.columns[col_number]].plot(style='.-',  label=df.columns[col_number])
 
-    #plt.scatter(imputed_indices, df[df.columns[col_number]].loc[imputed_indices], color='red')
+    plt.scatter(imputed_indices, df[df.columns[col_number]].loc[imputed_indices], color='red')
 
-    #plt.title("STL Imputation")
-    #plt.ylabel(df.columns[col_number])
-    #plt.xlabel("TimeStamp")
-    #plt.show()
+    plt.title("STL Imputation")
+    plt.ylabel(df.columns[col_number])
+    plt.xlabel("TimeStamp")
+    plt.show()
     return df
+
+
+    #STL Decomposition, does not work as required
+def replace_broken_records_stl(df, col_number):
+
+    # Fill missing values in the time series
+    imputed_indices = df[df[df.columns[col_number]].isna()].index
+
+    # Apply STL decompostion
+    stl = STL(df[df.columns[col_number]].interpolate(), period=96, seasonal=729)
+    res = stl.fit()
+    res.plot()
+    plt.show()
+
+    # Extract the seasonal and trend components
+    seasonal_component = res.seasonal
+
+    # Create the deseasonalised series
+    df_deseasonalised = df[df.columns[col_number]] - seasonal_component
+
+    # Interpolate missing values in the deseasonalised series
+    df_deseasonalised_imputed = df_deseasonalised.interpolate(method="linear")
+
+    # Add the seasonal component back to create the final imputed series
+    df_imputed = df_deseasonalised_imputed + seasonal_component
+
+    # Update the original dataframe with the imputed value
+    df.loc[imputed_indices, df.columns[col_number]] = df_imputed[imputed_indices]
+
+    # Plot the series using pandas
+    plt.figure(figsize=[12, 6])
+    df[df.columns[col_number]].plot(style='.-',  label=df.columns[col_number])
+
+    plt.scatter(imputed_indices, df[df.columns[col_number]].loc[imputed_indices], color='red')
+
+    plt.title("STL Imputation")
+    plt.ylabel(df.columns[col_number])
+    plt.xlabel("TimeStamp")
+    plt.show()
+    return df
+
+    #MSTL Decomposition
+def replace_broken_records_mstl(df, col_number):
+
+    # Fill missing values in the time series
+    imputed_indices = df[df[df.columns[col_number]].isna()].index
+
+    # Apply STL decompostion
+    mstl = MSTL(df[df.columns[col_number]].interpolate(), periods=[96, 672], windows=[201, 201])
+    res = mstl.fit()
+    res.plot()
+    plt.show()
+
+    # Extract the seasonal and trend components
+    seasonal_component_96 = res.seasonal["seasonal_96"]
+    seasonal_component_672 = res.seasonal["seasonal_672"]
+
+    # Create the deseasonalised series
+    df_deseasonalised = df[df.columns[col_number]] - seasonal_component_96 - seasonal_component_672
+
+    # Interpolate missing values in the deseasonalised series
+    index_time = df_deseasonalised.index
+    print(index_time)
+    df_deseasonalised = df_deseasonalised.reset_index()
+    print(df_deseasonalised)
+    df_deseasonalised_imputed = df_deseasonalised.interpolate(method='cubic')
+
+    df_deseasonalised_imputed.index = index_time
+    print(df_deseasonalised_imputed)
+
+    # Add the seasonal component back to create the final imputed series
+    df_imputed = df_deseasonalised_imputed + seasonal_component_96 + seasonal_component_672
+
+    # Update the original dataframe with the imputed value
+    df.loc[imputed_indices, df.columns[col_number]] = df_imputed[imputed_indices]
+
+    # Plot the series using pandas
+    plt.figure(figsize=[12, 6])
+    df[df.columns[col_number]].plot(style='.-',  label=df.columns[col_number])
+
+    plt.scatter(imputed_indices, df[df.columns[col_number]].loc[imputed_indices], color='red')
+
+    plt.title("MSTL Imputation")
+    plt.ylabel(df.columns[col_number])
+    plt.xlabel("TimeStamp")
+    plt.show()
+    return df
+
+#Split data based on a manual date
+def split_data(df, col_number, split_date):
+    train = df.loc[:split_date, df.columns[col_number]]
+    #train['train'] = train.loc[:,df.columns[col_number]]
+
+
+    test = df.loc[split_date:, df.columns[col_number]]
+    #test['test'] = test[df.columns[col_number]]
+    #del test[df.columns[col_number]]
+
+
+    plt.plot(train, color = "black")
+    plt.plot(test, color = "red")
+    plt.title("Train/Test split Data")
+    plt.ylabel(df.columns[col_number])
+    plt.xlabel('TimeStamp')
+    sns.set_theme()
+    plt.show()
+    return train, test
+
+#Split based on a test percentage
+def split_data_2(df, col_number, split_perc):
+    total = len(df[df.columns[col_number]])
+    split = int((1-split_perc)*total)
+    df_col = df[df.columns[col_number]]
+    train = df_col.iloc[:split]
+    test = df_col.iloc[split:]
+
+    plt.plot(train, color = "black")
+    plt.plot(test, color = "red")
+    plt.title("Train/Test split Data")
+    plt.ylabel(df.columns[col_number])
+    plt.xlabel('TimeStamp')
+    sns.set_theme()
+    plt.show()
+    return train, test

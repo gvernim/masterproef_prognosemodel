@@ -32,6 +32,7 @@ def format_data(df):
     #Make timestamp the index and convert to correct timezone
     df.index = df['TimeStamp']
     df.index = df.index.tz_convert('Europe/Brussels')
+    df = df.drop_duplicates()
 
     #Delete unused columns
     del df['TimeStamp']
