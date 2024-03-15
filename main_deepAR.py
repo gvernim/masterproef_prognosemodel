@@ -10,6 +10,14 @@ from math import sqrt
 #Import statistical analysis
 from sklearn.metrics import mean_squared_error
 
+#Import model
+import torch
+import pytorch_lightning as pl
+import matplotlib.pyplot as plt
+
+
+#from pytorch_forecasting import Baseline, DeepAR, TimeSeriesDataSet
+
 #Import custom classes
 import load_data
 import visualize_data
@@ -131,9 +139,9 @@ plt.show()
 
 #End Model data preparation
 
-#6. Prophet Model
+#6. DeepAR Model
 
-#End Prophet Model
+#End DeepAR Model
 
 #7. Evaluation
 

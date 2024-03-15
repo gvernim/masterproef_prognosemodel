@@ -18,6 +18,7 @@ import load_data
 import visualize_data
 import prepare_data
 import analyze_data
+import model_data_preparation
 
 #User variables
 filename = 'Merelbeke Energie.csv'

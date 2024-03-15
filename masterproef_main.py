@@ -19,6 +19,7 @@ import load_data
 import visualize_data
 import prepare_data
 import analyze_data
+import model_data_preparation
 import model_arima_data
 
 #User variables
