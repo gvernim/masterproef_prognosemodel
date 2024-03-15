@@ -104,7 +104,7 @@ else:
 df_dates, df_periods = prepare_data.find_missing_data_periods(df_col, rolling_records)
 df_dates_points = prepare_data.find_missing_data_points(df_col)
 
-#print('The following periods contain possible faulty data: \n', df_periods)
+print('The following periods contain possible faulty data: \n', df_periods)
 
 #Add both broken periods and points together
 df_dates['broken_record'] = df_dates['broken_record'] | df_dates_points['broken_record']
@@ -150,6 +150,27 @@ print(stop)
 
 #prepare_data.show_missing_data(df)
 
+#Impute missing data
+
+prepare_data.replace_broken_records_custom(df_col)
+
+# Both dont work as required. Can impute the seasonal component somewhat but is not able to impute the trend/residu component
+# Leaves an unrealistic imputation
+#df = prepare_data.replace_broken_records_seasonal_decompose(df, column_number)
+#df = prepare_data.replace_broken_records_stl(df, column_number)
+#df = prepare_data.replace_broken_records_mstl(df, column_number)
+
+#For each seperate period
+#for index, row in df_periods.iterrows():
+#    print(len(df.loc[row.iloc[0]:row.iloc[1]]))
+
+#    if index != 0 and len(df.loc[row.iloc[0]:row.iloc[1]]) < 5000 and index != len(df_periods)-1:
+#        first_good_date = df_periods.iloc[index-1, 1]
+#        print('First: ', first_good_date)
+#        last_good_date = df_periods.iloc[index+1, 0]
+#        print('Last: ',last_good_date)
+#        df.loc[first_good_date:last_good_date, :] = prepare_data.replace_broken_records_stl(df.loc[first_good_date:last_good_date, :], column_number)
+
 #End Data preparation
 
 #4. Analysis
@@ -193,12 +214,6 @@ print(stop)
 
 
 #5. Model data preparation
-
-# Both dont work as required. Can impute the seasonal component somewhat but is not able to impute the trend/residu component
-# Leaves an unrealistic imputation
-#df = prepare_data.replace_broken_records_seasonal_decompose(df, column_number)
-#df = prepare_data.replace_broken_records_stl(df, column_number)
-#df = prepare_data.replace_broken_records_mstl(df, column_number)
 
 #train, test = prepare_data.split_data(df.iloc[start:stop-1], column_number, split_date)
 

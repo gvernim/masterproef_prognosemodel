@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import math
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -7,6 +8,12 @@ import seaborn as sns
 #Imputation imports
 from sklearn.linear_model import LinearRegression
 from sklearn.impute import KNNImputer
+
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
+from sklearn.linear_model import BayesianRidge
+from sklearn.ensemble import ExtraTreesRegressor
+
 from statsmodels.tsa.seasonal import STL
 from statsmodels.tsa.seasonal import MSTL
 from statsmodels.tsa.seasonal import seasonal_decompose
@@ -36,9 +43,9 @@ def find_missing_data_points(df):
     df_dates['broken_record'] = df_dates.iloc[:, 0].between(50*col_neg_mean.iloc[0], 100*col_pos_mean.iloc[0])
     df_dates['broken_record'] = ~df_dates['broken_record']
 
-    sns.set_theme()
-    sns.lineplot(df)
-    sns.scatterplot(df_dates.iloc[:,0].where(df_dates['broken_record']), color="red")
+    #sns.set_theme()
+    #sns.lineplot(df)
+    #sns.scatterplot(df_dates.iloc[:,0].where(df_dates['broken_record']), color="red")
 
     plt.show()
 
@@ -98,7 +105,7 @@ def find_missing_data_periods(df, rolling_records=68):
             df_periods = df_periods._append(df_entry, ignore_index=True)
 
     df_periods = df_periods[::-1]
-    df_periods.reset_index(drop=True)
+    df_periods = df_periods.reset_index(drop=True)
     df_dates = df_reverse_dates[::-1]
     del df_dates['rolling_mean']
 
@@ -131,6 +138,32 @@ def find_largest_period_without_nan(df):
 
 
 #Replace the broken records
+
+def replace_broken_records_custom(df):
+    result_day = df.groupby(df.index.hour).mean()
+    result_week = df.groupby(df.index.weekday).mean()
+    result_month = df.groupby(df.index.month).mean()
+
+    #mean_hours = result_day.mean()
+    mean_days = result_week.mean()
+    mean_months = result_month.mean()
+
+    imputed_indices = df[df.isna()].index
+
+    predicted_values = pd.DataFrame({'hour': imputed_indices.hour, 'weekday': imputed_indices.weekday, 'month': imputed_indices.month} , index=imputed_indices)
+
+    for index, row in predicted_values.iterrows():
+        prediction = result_day.iloc[row.iloc[0]]*(result_week.iloc[row.iloc[1]]/mean_days)*(result_month.iloc[row.iloc[2]-1]/mean_months)
+        df.loc[index] = prediction
+        predicted_values.loc[index, 'pred_value'] = prediction
+
+    df.plot()
+    plt.scatter(imputed_indices, predicted_values['pred_value'], color='red', label='Custom Imputation')
+
+    plt.show()
+
+    return df
+
     #Mean/Median/Mode Imputation (Too simple for a complex dataset)
 
     #Rolling statistics Imputation (Not good for a period of broken data)
@@ -139,8 +172,8 @@ def find_largest_period_without_nan(df):
 
     #Spline/polynomial Interpolation (Can create unrealistic fits for longer periods)
 
-    #Linear Regression Imputation (Requires a secondary variable) //Unadapted copy
-def replace_broken_records_knn(df, col_number, corr_col_number):
+    #Linear Regression Imputation (Requires features) //Unadapted copy
+def replace_broken_records_linear_regression(df, col_number, corr_col_number):
     # Drop missing values to fit the regression model
     df_imputed = df.copy()
     df_non_missing = df.dropna()
@@ -178,28 +211,29 @@ def replace_broken_records_knn(df, col_number, corr_col_number):
 
     return df
 
-    #K-Nearest Neighbours (Requires a secondary variable) //Unadapted copy
+    #K-Nearest Neighbours (Requires features to impute data) //Unadapted copy
 def replace_broken_records_knn(df, col_number, corr_col_number):
     # Initialize the KNN imputer with k=5
+    print(df[df[df.columns[col_number]].isna()].count())
     imputer = KNNImputer(n_neighbors=3)
 
     # Apply the KNN imputer
     # Note: the KNNImputer requires 2D array-like input, hence the double brackets.
     df_imputed = df.copy()
-    df_imputed[['sales', 'ad_spent']] = imputer.fit_transform(df_imputed[['sales', 'ad_spent']])
+    df_imputed[[df.columns[col_number], df.columns[corr_col_number]]] = imputer.fit_transform(df_imputed[[df.columns[col_number], df.columns[corr_col_number]]])
 
     # Create a matplotlib plot
     plt.figure(figsize=(12,8))
-    df_imputed['sales'].plot(style='.-', label='Sales')
+    df_imputed[df.columns[col_number]].plot(style='.-', label=df.columns[col_number])
 
     # Add points where data was imputed
-    imputed_indices = df[df['sales'].isnull()].index
-    plt.scatter(imputed_indices, df_imputed.loc[imputed_indices, 'sales'], color='red', label='KNN Imputation')
+    imputed_indices = df[df[df.columns[col_number]].isna()].index
+    plt.scatter(imputed_indices, df_imputed.loc[imputed_indices, df.columns[col_number]], color='red', label='KNN Imputation')
 
     # Set title and labels
-    plt.title('Sales with KNN Imputation')
-    plt.xlabel('Time')
-    plt.ylabel('Sales')
+    plt.title(df.columns[col_number] ,' with KNN Imputation')
+    plt.xlabel(df.columns[corr_col_number])
+    plt.ylabel(df.columns[col_number])
     plt.legend()
     plt.show()
     return df
@@ -244,14 +278,26 @@ def replace_broken_records_seasonal_decompose(df, col_number):
     return df
 
 
-    #STL Decomposition, does not work as required
+    #STL Decomposition, does not work as required for long periods
 def replace_broken_records_stl(df, col_number):
+
+    seasonal_calc = math.floor(len(df)/96)
+    if seasonal_calc % 2 == 0:
+        seasonal_calc -= 1
+
+    trend_calc = round(3*seasonal_calc)
+    if trend_calc % 2 == 0:
+        trend_calc -= 1
+
+    print('Seasonal: ', seasonal_calc)
+    print('Trend: ', trend_calc)
 
     # Fill missing values in the time series
     imputed_indices = df[df[df.columns[col_number]].isna()].index
+    #df[df.columns[col_number]] = df[df.columns[col_number]].fillna(0)
 
     # Apply STL decompostion
-    stl = STL(df[df.columns[col_number]].interpolate(), period=96, seasonal=729)
+    stl = STL(df[df.columns[col_number]].interpolate(), period=96, trend=trend_calc, seasonal=seasonal_calc)
     res = stl.fit()
     res.plot()
     plt.show()
@@ -264,6 +310,8 @@ def replace_broken_records_stl(df, col_number):
 
     # Interpolate missing values in the deseasonalised series
     df_deseasonalised_imputed = df_deseasonalised.interpolate(method="linear")
+    #df_deseasonalised_imputed = df_deseasonalised
+    #df_deseasonalised_imputed.loc[imputed_indices] = 0
 
     # Add the seasonal component back to create the final imputed series
     df_imputed = df_deseasonalised_imputed + seasonal_component
@@ -283,14 +331,22 @@ def replace_broken_records_stl(df, col_number):
     plt.show()
     return df
 
-    #MSTL Decomposition
+    #MSTL Decomposition, doesnt work as required for long periods
 def replace_broken_records_mstl(df, col_number):
+
+    seasonal_calc_1 = math.floor(len(df)/96)
+    seasonal_calc_2 = math.floor(len(df)/96)
+    if seasonal_calc_1 % 2 == 0:
+        seasonal_calc_1 -= 1
+    if seasonal_calc_2 % 2 == 0:
+        seasonal_calc_2 -= 1
 
     # Fill missing values in the time series
     imputed_indices = df[df[df.columns[col_number]].isna()].index
+    df[df.columns[col_number]] = df[df.columns[col_number]].fillna(0)
 
     # Apply STL decompostion
-    mstl = MSTL(df[df.columns[col_number]].interpolate(), periods=[96, 672], windows=[201, 201])
+    mstl = MSTL(df[df.columns[col_number]].interpolate(), periods=[96, 672], windows=[seasonal_calc_1, seasonal_calc_2])
     res = mstl.fit()
     res.plot()
     plt.show()
@@ -303,14 +359,7 @@ def replace_broken_records_mstl(df, col_number):
     df_deseasonalised = df[df.columns[col_number]] - seasonal_component_96 - seasonal_component_672
 
     # Interpolate missing values in the deseasonalised series
-    index_time = df_deseasonalised.index
-    print(index_time)
-    df_deseasonalised = df_deseasonalised.reset_index()
-    print(df_deseasonalised)
-    df_deseasonalised_imputed = df_deseasonalised.interpolate(method='cubic')
-
-    df_deseasonalised_imputed.index = index_time
-    print(df_deseasonalised_imputed)
+    df_deseasonalised_imputed = df_deseasonalised.interpolate(method='linear')
 
     # Add the seasonal component back to create the final imputed series
     df_imputed = df_deseasonalised_imputed + seasonal_component_96 + seasonal_component_672
