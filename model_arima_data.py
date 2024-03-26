@@ -41,13 +41,14 @@ def split_data_2(df, col_number, split_perc):
     plt.show()
     return train, test
 
-def execute_arima(train, test, order):
-    model = ARIMA(train, order=(1,1,4))
+def execute_arima(train, validation, order, seasonal_order):
+    print(validation)
+    model = ARIMA(train, order=order, seasonal_order=seasonal_order)
     model_fit = model.fit()
     print(model_fit.summary())
-    predictions = model_fit.predict(start=0, end=len(test))
+    predictions = model_fit.predict(start=validation.index[0], end=validation.index[-1])
     print(predictions)
-    predictions = pd.DataFrame(predictions, index=test.index)
+    #predictions = pd.DataFrame(predictions, index=validation.index)
 
     return model_fit, predictions
 

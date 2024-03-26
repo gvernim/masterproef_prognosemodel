@@ -9,15 +9,39 @@ import seaborn as sns
 import timeit
 
 import csv
+import json
 
 #Default variables
 filename = 'Merelbeke Energie.csv'
 
 #Load data from file into dataframe
-def load_data_in_df(filename = 'Merelbeke Energie.csv'):
+def load_csv_data_in_df(filename = 'Merelbeke Energie.csv'):
     df = pd.read_csv(filename, sep=';')
     df = change_header(df)
-    df = format_data(df)
+    df = format_data(df, 'csv')
+    return df
+
+def load_json_data_in_df(filename = 'Merelbeke Energie_2.json'):
+    f = open(filename)
+    data = json.load(f)
+
+    df = pd.DataFrame(data['DetailData'])
+
+    #df = change_header(df)
+    df = format_data(df, 'json')
+    return df
+
+def load_extra_data_in_df(filename = 'Merelbeke Weerdata.csv'):
+    df = pd.read_csv(filename, sep=',')
+
+    df['TimeStamp'] = pd.to_datetime(df['datetime'], format='%Y-%m-%dT%H:%M:%S')
+    df.index = df['TimeStamp']
+    df.index = df.index.tz_localize('Europe/Brussels', ambiguous='infer')
+    df = df.drop_duplicates()
+
+    del df['TimeStamp']
+    del df['datetime']
+
     return df
 
 def change_header(df):
@@ -25,9 +49,12 @@ def change_header(df):
         df = df.rename(columns={col_name: col_name.replace('ATS Groep / Merelbeke / ', '')})
     return df
 
-def format_data(df):
+def format_data(df, type):
     #Convert string into datetime
-    df['TimeStamp'] = pd.to_datetime(df['TimeStamp'], format='%Y-%m-%dT%H:%M:%S.000%z', utc=True)
+    if type=='csv':
+        df['TimeStamp'] = pd.to_datetime(df['TimeStamp'], format='%Y-%m-%dT%H:%M:%S.000%z', utc=True)
+    elif type == 'json':
+        df['TimeStamp'] = pd.to_datetime(df['TimeStamp'], format='%Y-%m-%dT%H:%M:%S%z', utc=True)
 
     #Make timestamp the index and convert to correct timezone
     df.index = df['TimeStamp']
@@ -36,7 +63,6 @@ def format_data(df):
 
     #Delete unused columns
     del df['TimeStamp']
-    del df['UnitOfMeasurement']
     return df
 
 def change_quarterly_index_to_hourly(df):

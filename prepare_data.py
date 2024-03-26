@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import math
+import datetime
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -14,6 +15,7 @@ from sklearn.impute import IterativeImputer
 from sklearn.linear_model import BayesianRidge
 from sklearn.ensemble import ExtraTreesRegressor
 
+from statsmodels.imputation.mice import MICE, MICEData
 from statsmodels.tsa.seasonal import STL
 from statsmodels.tsa.seasonal import MSTL
 from statsmodels.tsa.seasonal import seasonal_decompose
@@ -30,7 +32,6 @@ def show_missing_data_column(df, col_number):
 
     if df[df.columns[col_number]].isna().values.any():
         print('% missing data: \n', 100*df[df.columns[col_number]].isnull().sum()/len(df[df.columns[col_number]]))
-
 
 
 #Show possible extreme value points
@@ -86,7 +87,7 @@ def find_missing_data_periods(df, rolling_records=68):
     #sns.lineplot(df_dates['broken_record'], color="red")
     #plt.show()
 
-    #Extend period with the values to the left with the same value as the broken value (Assumption: Broken sensors emit same data from point it is broken)
+    #Extend period with the values to the left with the same value as the broken value (Assumption: Broken sensors/software record same data from point it is broken)
     df_reverse_dates = df_dates[::-1]
 
     df_periods = pd.DataFrame({'start_period': [], 'end_period': []}, dtype=object)
@@ -108,6 +109,13 @@ def find_missing_data_periods(df, rolling_records=68):
     df_periods = df_periods.reset_index(drop=True)
     df_dates = df_reverse_dates[::-1]
     del df_dates['rolling_mean']
+
+    for index, row in df_periods.iterrows():
+        if len(df_dates[row.iloc[0]:row.iloc[1]]) <= 75 and df_dates.loc[row.iloc[0], df_dates.columns[0]] <= 0.4:
+            df_dates.loc[row.iloc[0]:row.iloc[1], 'broken_record'] = False
+            df_periods.drop(index, inplace=True)
+
+
 
     #Show periods with broken data
 
@@ -138,7 +146,6 @@ def find_largest_period_without_nan(df):
 
 
 #Replace the broken records
-
 def replace_broken_records_custom(df):
     result_day = df.groupby(df.index.hour).mean()
     result_week = df.groupby(df.index.weekday).mean()
@@ -172,8 +179,8 @@ def replace_broken_records_custom(df):
 
     #Spline/polynomial Interpolation (Can create unrealistic fits for longer periods)
 
-    #Linear Regression Imputation (Requires features) //Unadapted copy
-def replace_broken_records_linear_regression(df, col_number, corr_col_number):
+    #Linear Regression Imputation (Requires features) //Works, but not correct
+def replace_broken_records_linear_regression(df):
     # Drop missing values to fit the regression model
     df_imputed = df.copy()
     df_non_missing = df.dropna()
@@ -182,39 +189,38 @@ def replace_broken_records_linear_regression(df, col_number, corr_col_number):
     model = LinearRegression()
 
     # Reshape data for model fitting (sklearn requires 2D array for predictors)
-    X = df_non_missing['ad_spent'].values.reshape(-1, 1)
-    Y = df_non_missing['sales'].values
+    X = df_non_missing[df.columns[1]].values.reshape(-1, 1)
+    Y = df_non_missing[df.columns[0]].values
 
     # Fit the model
     model.fit(X, Y)
 
-    # Get indices of missing sales
-    missing_sales_indices = df_imputed[df_imputed['sales'].isnull()].index
+    # Get indices of missing
+    missing_indices = df_imputed[df_imputed[df.columns[0]].isnull()].index
 
-    # Predict missing sales values
-    predicted_sales = model.predict(df_imputed.loc[missing_sales_indices, 'ad_spent'].values.reshape(-1, 1))
+    # Predict missing values
+    predicted = model.predict(df_imputed.loc[missing_indices, df.columns[1]].values.reshape(-1, 1))
 
-    # Fill missing sales with predicted values
-    df_imputed.loc[missing_sales_indices, 'sales'] = predicted_sales
+    # Fill missing with predicted values
+    df_imputed.loc[missing_indices, df.columns[0]] = predicted
 
     # Plot the main line with markers
-    df_imputed[['sales']].plot(style='.-', figsize=(12,8), title='Sales with Regression Imputation')
+    df_imputed[[df.columns[0]]].plot(style='.-', figsize=(12,8), title='Data with Regression Imputation')
 
     # Add points where data was imputed with red color
-    plt.scatter(missing_sales_indices, predicted_sales, color='red', label='Regression Imputation')
+    plt.scatter(missing_indices, predicted, color='red', label='Regression Imputation')
 
     # Set labels
-    plt.xlabel('Time')
-    plt.ylabel('Sales')
+    plt.xlabel('TimeStamp')
+    plt.ylabel(df.columns[0])
 
     plt.show()
 
     return df
 
-    #K-Nearest Neighbours (Requires features to impute data) //Unadapted copy
+    #K-Nearest Neighbours (Requires features to impute data) //Works better than linear regression
 def replace_broken_records_knn(df, col_number, corr_col_number):
     # Initialize the KNN imputer with k=5
-    print(df[df[df.columns[col_number]].isna()].count())
     imputer = KNNImputer(n_neighbors=3)
 
     # Apply the KNN imputer
@@ -231,12 +237,12 @@ def replace_broken_records_knn(df, col_number, corr_col_number):
     plt.scatter(imputed_indices, df_imputed.loc[imputed_indices, df.columns[col_number]], color='red', label='KNN Imputation')
 
     # Set title and labels
-    plt.title(df.columns[col_number] ,' with KNN Imputation')
+    plt.title('KNN Imputation')
     plt.xlabel(df.columns[corr_col_number])
     plt.ylabel(df.columns[col_number])
     plt.legend()
     plt.show()
-    return df
+    return df_imputed
 
     #Seasonal decompose Decomposition, does not work as required
 def replace_broken_records_seasonal_decompose(df, col_number):
@@ -379,38 +385,39 @@ def replace_broken_records_mstl(df, col_number):
     plt.show()
     return df
 
+def replace_broken_record_mice(df):
+    return df
+
 #Split data based on a manual date
-def split_data(df, col_number, split_date):
-    train = df.loc[:split_date, df.columns[col_number]]
-    #train['train'] = train.loc[:,df.columns[col_number]]
+def split_data(df, split_date):
+    diff = datetime.timedelta(hours=1)
 
+    train = df.loc[:split_date]
 
-    test = df.loc[split_date:, df.columns[col_number]]
-    #test['test'] = test[df.columns[col_number]]
-    #del test[df.columns[col_number]]
-
+    test = df.loc[split_date+diff:]
 
     plt.plot(train, color = "black")
     plt.plot(test, color = "red")
     plt.title("Train/Test split Data")
-    plt.ylabel(df.columns[col_number])
+    plt.ylabel(df.columns[0])
     plt.xlabel('TimeStamp')
     sns.set_theme()
     plt.show()
     return train, test
 
 #Split based on a test percentage
-def split_data_2(df, col_number, split_perc):
-    total = len(df[df.columns[col_number]])
+def split_data_2(df, split_perc):
+    total = len(df[df.columns[0]])
     split = int((1-split_perc)*total)
-    df_col = df[df.columns[col_number]]
+    diff = datetime.timedelta(hours=1)
+    df_col = df[df.columns[0]]
     train = df_col.iloc[:split]
     test = df_col.iloc[split:]
 
-    plt.plot(train, color = "black")
-    plt.plot(test, color = "red")
+    plt.plot(train[train.columns[0]], color = "black")
+    plt.plot(test[test.columns[0]], color = "red")
     plt.title("Train/Test split Data")
-    plt.ylabel(df.columns[col_number])
+    plt.ylabel(df.columns[0])
     plt.xlabel('TimeStamp')
     sns.set_theme()
     plt.show()

@@ -4,39 +4,61 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from statsmodels.graphics.tsaplots import plot_acf
-from statsmodels.graphics.tsaplots import plot_pacf
-from statsmodels.tsa.stattools import adfuller
-from statsmodels.tsa.stattools import kpss
-from statsmodels.tsa.seasonal import seasonal_decompose
+from pandas.plotting import autocorrelation_plot
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.tsa.stattools import adfuller, kpss
+from statsmodels.tsa.seasonal import seasonal_decompose, STL
 
 #Correlation function
-def correlation_between_columns(df, col_number_1, col_number_2):
-    print('Correlation between ', df.columns[col_number_1], ' and ', df.columns[col_number_2],': ' , df[df.columns[col_number_1]].corr(df[df.columns[col_number_2]]))
+def correlation_between_columns(df_1, df_2, col_number_1, col_number_2):
+    print('Correlation between ', df_1.columns[col_number_1], ' and ', df_2.columns[col_number_2],': ' , df_1[df_1.columns[col_number_1]].corr(df_2[df_2.columns[col_number_2]]))
 
 
 #Decomposition analysis
-def analyze_decomp_column(df, col_number):
-    decompose = seasonal_decompose(df[df.columns[col_number]] ,model='additive', period=96)
-    decompose.plot()
+def analyze_decomp_column(df, period):
+    #decompose_add = seasonal_decompose(df[df.columns[0]] ,model='additive', period=period)
+    decompose_add = STL(df[df.columns[0]] , period=period, seasonal=25, trend=73, seasonal_deg=5, trend_deg=5, robust=True).fit()
+    decompose_add.plot()
     plt.show()
 
-def analyze_decomp_column_period_start_end(df, col_number, start_period, end_period):
+    seasonal_add = decompose_add.seasonal
+    non_seasonal_add = decompose_add.trend
+    residuals = decompose_add.resid[1:]
+
+    fig,ax = plt.subplots(1,2)
+    residuals.plot(title='Residuals', ax=ax[0])
+    residuals.plot(title='Density', kind='kde', ax=ax[1])
+
+#    decompose_multi = seasonal_decompose(df[df.columns[0]] ,model='multiplicative', period=period)
+#    decompose_multi.plot()
+#    plt.show()
+
+#    seasonal_multi = decompose_multi.seasonal
+#    non_seasonal_multi = decompose_multi.trend
+
+    return seasonal_add, non_seasonal_add   #, seasonal_multi, non_seasonal_multi
+
+def analyze_decomp_column_period_start_end(df, start_period, end_period, period):
     df = df[start_period:end_period]
-    decompose = seasonal_decompose(df[df.columns[col_number]] ,model='additive', period=96)
+    decompose = seasonal_decompose(df[df.columns[0]] ,model='additive', period=period)
     decompose.plot()
     plt.show()
 
-def analyze_decomp_column_period_start_length(df, col_number, start_period, length_period):
+def analyze_decomp_column_period_start_length(df, start_period, length_period, period):
     end_period = start_period + length_period
     df = df[start_period:end_period]
-    decompose = seasonal_decompose(df[df.columns[col_number]] ,model='additive', period=96)
+    decompose = seasonal_decompose(df[df.columns[0]] ,model='additive', period=period)
     decompose.plot()
     plt.show()
 
 #Stationary analysis functions
 #ACF for determing d-value
 def show_plot_acf(df, col_number):
+
+    df = pd.DataFrame(df, index=df.index)
+    autocorrelation_plot(df[df.columns[col_number]])
+    plt.show()
+
     fig, ax = plt.subplots(figsize=(10, 5))
     plot_acf(df[df.columns[col_number]], ax=ax)
     plt.xlabel('Lag')
@@ -45,6 +67,12 @@ def show_plot_acf(df, col_number):
     plt.show()
 
 def show_plot_acf_1_diff(df, col_number):
+
+    df = pd.DataFrame(df, index=df.index)
+
+    autocorrelation_plot(df[df.columns[col_number]].diff().dropna())
+    plt.show()
+
     f= plt.figure()
     ax1 = f.add_subplot(121)
     ax1.plot(df[df.columns[col_number]].diff())
@@ -57,6 +85,12 @@ def show_plot_acf_1_diff(df, col_number):
     plt.show()
 
 def show_plot_acf_2_diff(df, col_number):
+
+    df = pd.DataFrame(df, index=df.index)
+
+    autocorrelation_plot(df[df.columns[col_number]].diff().diff().dropna())
+    plt.show()
+
     f= plt.figure()
     ax1 = f.add_subplot(121)
     ax1.plot(df[df.columns[col_number]].diff().diff())
@@ -70,7 +104,10 @@ def show_plot_acf_2_diff(df, col_number):
 
 #Making sure of d-parameter
 def adfuller_test(df, col_number):
-    result = adfuller(df[df.columns[col_number]], autolag="AIC")
+
+    df = pd.DataFrame(df, index=df.index)
+
+    result = adfuller(df[df.columns[col_number]].dropna(), autolag="AIC")
     print(f"Test Statistic: {result[0]}")
     print(f"P-value: {result[1]}")
 
@@ -84,7 +121,9 @@ def adfuller_test(df, col_number):
 
 #Another metric for the d-parameter
 def kpss_test(df, col_number):
-    result = kpss(df[df.columns[col_number]])
+
+    df = pd.DataFrame(df, index=df.index)
+    result = kpss(df[df.columns[col_number]].dropna())
     print(f"Test Statistic: {result[0]}")
     print(f"P-value: {result[1]}")
 
@@ -97,6 +136,9 @@ def kpss_test(df, col_number):
     print(f"P-value: {result[1]}")
 
 def show_plot_pacf(df, col_number):
+
+    df = pd.DataFrame(df, index=df.index)
+
     # Plot PACF
     fig, ax = plt.subplots(figsize=(10, 5))
     plot_pacf(df[df.columns[col_number]], ax=ax)
@@ -106,6 +148,9 @@ def show_plot_pacf(df, col_number):
     plt.show()
 
 def show_plot_pacf_1_diff(df, col_number):
+
+    df = pd.DataFrame(df, index=df.index)
+
     f= plt.figure()
     ax1 = f.add_subplot(121)
     ax1.plot(df[df.columns[col_number]].diff())
@@ -118,6 +163,9 @@ def show_plot_pacf_1_diff(df, col_number):
     plt.show()
 
 def show_plot_pacf_2_diff(df, col_number):
+
+    df = pd.DataFrame(df, index=df.index)
+
     f= plt.figure()
     ax1 = f.add_subplot(121)
     ax1.plot(df[df.columns[col_number]].diff().diff())
