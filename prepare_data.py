@@ -28,6 +28,7 @@ def show_missing_data(df):
         print('% missing data: \n', 100*df.isnull().sum()/len(df))
 
 def show_missing_data_column(df, col_number):
+    df = pd.DataFrame(df, index=df.index)
     print(df.columns[col_number], ' contains NaN values: ', df[df.columns[col_number]].isna().values.any())
 
     if df[df.columns[col_number]].isna().values.any():
@@ -119,11 +120,15 @@ def find_missing_data_periods(df, rolling_records=68):
 
     #Show periods with broken data
 
-    #sns.set_theme()
-    #sns.lineplot(df_dates.iloc[:,0])
-    #sns.lineplot(df_dates['broken_record'], color="red")
+    df_dates['bad data'] = df_dates[df_dates.columns[0]]
+    df_dates.loc[df_dates['broken_record']==False, 'bad data'] = 0
+    sns.set_theme()
+    #sns.lineplot(df_dates.loc[:,0], color="blue")
+    df_dates.plot(y=[df_dates.columns[0], 'bad data'], color={df_dates.columns[0]: 'b','bad data': 'red'})
 
-    #plt.show()
+    plt.show()
+
+    del df_dates['bad data']
 
     return df_dates, df_periods
 
@@ -178,6 +183,45 @@ def replace_broken_records_custom(df):
     #Linear Interpolation (Good for data with a linear trend, not for data with seasonal patterns)
 
     #Spline/polynomial Interpolation (Can create unrealistic fits for longer periods)
+
+def replace_broken_records_kalman_smoothing(df):
+    # Drop missing values to fit the regression model
+    df_imputed = df.copy()
+    df_non_missing = df.dropna()
+
+    # Instantiate the model
+    model = LinearRegression()
+
+    # Reshape data for model fitting (sklearn requires 2D array for predictors)
+    X = df_non_missing[df.columns[1]].values.reshape(-1, 1)
+    Y = df_non_missing[df.columns[0]].values
+
+    # Fit the model
+    model.fit(X, Y)
+
+    # Get indices of missing
+    missing_indices = df_imputed[df_imputed[df.columns[0]].isnull()].index
+
+    # Predict missing values
+    predicted = model.predict(df_imputed.loc[missing_indices, df.columns[1]].values.reshape(-1, 1))
+
+    # Fill missing with predicted values
+    df_imputed.loc[missing_indices, df.columns[0]] = predicted
+
+    # Plot the main line with markers
+    df_imputed[[df.columns[0]]].plot(style='.-', figsize=(12,8), title='Data with Regression Imputation')
+
+    # Add points where data was imputed with red color
+    plt.scatter(missing_indices, predicted, color='red', label='Regression Imputation')
+
+    # Set labels
+    plt.xlabel('TimeStamp')
+    plt.ylabel(df.columns[0])
+
+    plt.show()
+
+    return df
+
 
     #Linear Regression Imputation (Requires features) //Works, but not correct
 def replace_broken_records_linear_regression(df):
@@ -392,9 +436,9 @@ def replace_broken_record_mice(df):
 def split_data(df, split_date):
     diff = datetime.timedelta(hours=1)
 
-    train = df.loc[:split_date]
+    train = df.loc[:split_date-diff]
 
-    test = df.loc[split_date+diff:]
+    test = df.loc[split_date:]
 
     plt.plot(train, color = "black")
     plt.plot(test, color = "red")
@@ -411,7 +455,7 @@ def split_data_2(df, split_perc):
     split = int((1-split_perc)*total)
     diff = datetime.timedelta(hours=1)
     df_col = df[df.columns[0]]
-    train = df_col.iloc[:split]
+    train = df_col.iloc[:split-diff]
     test = df_col.iloc[split:]
 
     plt.plot(train[train.columns[0]], color = "black")

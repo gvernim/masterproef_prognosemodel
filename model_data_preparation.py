@@ -9,9 +9,9 @@ import seaborn as sns
 def split_data(df, split_date):
     diff = datetime.timedelta(hours=1)
 
-    train = df.loc[:split_date]
+    train = df.loc[:split_date-diff]
 
-    test = df.loc[split_date+diff:]
+    test = df.loc[split_date:]
 
     plt.plot(train, color = "black")
     plt.plot(test, color = "red")
@@ -27,7 +27,9 @@ def split_data_2(df, split_perc):
     total = len(df[df.columns[0]])
     split = int((1-split_perc)*total)
     df_col = df[df.columns[0]]
-    train = df_col.iloc[:split]
+    
+    diff = datetime.timedelta(hours=1)
+    train = df_col.iloc[:split-diff]
     test = df_col.iloc[split:]
 
     plt.plot(train, color = "black")

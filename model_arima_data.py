@@ -1,29 +1,28 @@
 import pandas as pd
 import numpy as np
+import datetime
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from statsmodels.tsa.arima.model import ARIMA
 
-def split_data(df, col_number, split_date):
-    train = df.loc[:split_date, df.columns[col_number]]
-    #train['train'] = train.loc[:,df.columns[col_number]]
+def split_data_hour_2_weeks(df, start_date, split_date):
 
+    diff = datetime.timedelta(hours=1)
+    validation_period = datetime.timedelta(days=13, hours=23)
 
-    test = df.loc[split_date:, df.columns[col_number]]
-    #test['test'] = test[df.columns[col_number]]
-    #del test[df.columns[col_number]]
+    train = df[start_date:split_date-diff]
+    validation = df[split_date:split_date+validation_period]
 
-
-    plt.plot(train, color = "black")
-    plt.plot(test, color = "red")
-    plt.title("Train/Test split Data")
-    plt.ylabel(df.columns[col_number])
+    plt.plot(train[validation.columns[0]], color = "black")
+    plt.plot(validation[validation.columns[0]], color = "red")
+    plt.title("Train/Validation split Data")
+    plt.ylabel(df.columns[0])
     plt.xlabel('TimeStamp')
     sns.set_theme()
     plt.show()
-    return train, test
+    return train, validation
 
 def split_data_2(df, col_number, split_perc):
     total = len(df[df.columns[col_number]])

@@ -6,8 +6,6 @@ import holidays
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-import timeit
-
 import csv
 import json
 
@@ -95,13 +93,3 @@ def give_bank_holidays_hourly(start_date, end_date):
         dates = pd.DataFrame({'Date': pd.date_range(row['Date'], periods=24, freq='h')})
         df_holidays = pd.concat([df_holidays, dates]).drop_duplicates().sort_values(by='Date').reset_index(drop=True)
     return df_holidays
-
-#Test functie, unused
-def timer_func(func):
-    start = timeit.default_timer()
-    value = func()
-    runtime = timeit.default_timer() - start
-    msg = "{func} took {time} seconds to complete its execution."
-    print(msg.format(func = func.__name__,time = runtime))
-
-#timer_func(load_data)
