@@ -13,13 +13,13 @@ def split_data(df, split_date):
 
     test = df.loc[split_date:]
 
-    plt.plot(train, color = "black")
-    plt.plot(test, color = "red")
-    plt.title("Train/Test split Data")
-    plt.ylabel(df.columns[0])
-    plt.xlabel('TimeStamp')
-    sns.set_theme()
-    plt.show()
+    #plt.plot(train, color = "black")
+    #plt.plot(test, color = "red")
+    #plt.title("Train/Test split Data")
+    #plt.ylabel(df.columns[0])
+    #plt.xlabel('TimeStamp')
+    #sns.set_theme()
+    #plt.show()
     return train, test
 
 #Split based on a test percentage

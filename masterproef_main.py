@@ -7,7 +7,7 @@ import datetime
 from math import sqrt
 
 #Import statistical analysis
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 #Import arima model
 from pmdarima.arima import auto_arima
@@ -96,7 +96,7 @@ del df_2024['SmartCharging / meter-001 / ActiveEnergyImportTarrif2(Consumptie)']
 #visualize_data.visualize_columns(df)
 #visualize_data.visualize_columns(df_2024)
 
-#analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 0)    #Very weak
+analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 0)    #Very weak
 #analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 1)    #Weak negative
 #analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 2)    #Very weak
 #analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 3)    #Weak negative
@@ -235,10 +235,33 @@ df_imputed_hour = prepare_data.replace_broken_records_knn(df_analyze, 0, 1)
 period_freq = 24 #96 for quarterly
 
 #Decomposition analysis
-#seasonal_add, non_seasonal_add = analyze_data.analyze_decomp_column(df_imputed_hour, period_freq)
+#seasonal_add, non_seasonal_add, residuals = analyze_data.analyze_decomp_column(df_imputed_hour, period_freq)
 #analyze_data.analyze_decomp_column_period_start_end(df, column_number, start_period, end_period)
 #analyze_data.analyze_decomp_column_period_start_length(df, column_number, start_period, length_period)
 
+#seasonal_add = pd.DataFrame(seasonal_add)
+#non_seasonal_add = pd.DataFrame(non_seasonal_add)
+#residuals = pd.DataFrame(residuals)
+
+#analyze_data.correlation_between_columns(seasonal_add, df_weer, 0, 0)
+#analyze_data.correlation_between_columns(non_seasonal_add, df_weer, 0, 0)
+#analyze_data.correlation_between_columns(residuals, df_weer, 0, 0)
+
+#analyze_data.correlation_between_columns(seasonal_add, df_weer, 0, 1)
+#analyze_data.correlation_between_columns(non_seasonal_add, df_weer, 0, 1)
+#analyze_data.correlation_between_columns(residuals, df_weer, 0, 1)
+
+#analyze_data.correlation_between_columns(seasonal_add, df_weer, 0, 2)
+#analyze_data.correlation_between_columns(non_seasonal_add, df_weer, 0, 2)
+#analyze_data.correlation_between_columns(residuals, df_weer, 0, 2)
+
+#analyze_data.correlation_between_columns(seasonal_add, df_weer, 0, 3)
+#analyze_data.correlation_between_columns(non_seasonal_add, df_weer, 0, 3)
+#analyze_data.correlation_between_columns(residuals, df_weer, 0, 3)
+
+#analyze_data.correlation_between_columns(seasonal_add, df_weer, 0, 4)
+#analyze_data.correlation_between_columns(non_seasonal_add, df_weer, 0, 4)
+#analyze_data.correlation_between_columns(residuals, df_weer, 0, 4)
 
 #Stationary analysis
     #Determine d-parameter => Which lag is largest (If unclear check differencing ACF)

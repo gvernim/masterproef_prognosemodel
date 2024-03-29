@@ -5,13 +5,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import datetime
 from math import sqrt
+from pandas.tseries.offsets import DateOffset
 
 #Import statistical analysis
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error
+from sklearn.model_selection import TimeSeriesSplit
 
 #Import arima model
-from pmdarima.arima import auto_arima, StepwiseContext
-from statsmodels.tsa.arima.model import ARIMA
+from pmdarima.arima import auto_arima, ARIMA, StepwiseContext
+from statsmodels.tsa.stattools import adfuller
+#from statsmodels.tsa.arima.model import ARIMA
 
 #Import custom classes
 import load_data
@@ -33,8 +36,7 @@ end_date_data_json = pd.to_datetime('2024-02-29 23:45:00+01:00')
 
     #Vorm tijdperiodes '2021-12-31 23:00:00+00:00' (Startdate of data)
 start_period = pd.to_datetime('2023-01-01 00:00:00+01:00')
-end_period = pd.to_datetime('2024-01-13 23:00:00+01:00')
-length_period = datetime.timedelta(days=90)
+end_period = pd.to_datetime('2024-02-29 23:00:00+01:00')
 
 start_test_set = pd.to_datetime('2024-01-01 00:00:00+01:00')
 end_test_set_2_weeks = pd.to_datetime('2024-01-14 23:00:00+01:00')
@@ -123,7 +125,7 @@ else:
 df_dates, df_periods = prepare_data.find_missing_data_periods(df_col, rolling_records)
 df_dates_points = prepare_data.find_missing_data_points(df_col)
 
-print('The following periods contain possible faulty data: \n', df_periods)
+#print('The following periods contain possible faulty data: \n', df_periods)
 
 #Add both broken periods and points together
 df_dates['broken_record'] = df_dates['broken_record'] | df_dates_points['broken_record']
@@ -221,38 +223,76 @@ df_test_set_2_month = df_imputed_hour.loc[start_test_set:end_test_set_2_month]
 df_train, df_test = model_data_preparation.split_data(df_imputed_hour, start_test_set)
 
 #Set these to find test result
-training_period = datetime.timedelta(days=26)
-start_train_date_1 = pd.to_datetime('2023-06-10 00:00:00+01:00')
-split_train_date_1 = start_train_date_1 + training_period
+training_period_days = 7
+offset_validation = DateOffset(months=1)
+training_period = datetime.timedelta(days=training_period_days)
 
-df_train_1, df_validation_1 = model_arima_data.split_data_hour_2_weeks(df_train, start_train_date_1, split_train_date_1)
+start_validation_date = pd.to_datetime('2023-07-01 00:00:00+01:00')
+
+start_train_date = start_validation_date - training_period
+
+
 
 #End Model data preparation
 
 #6. ARIMA Model
 
-with StepwiseContext(max_steps=100):
-    with StepwiseContext(max_dur=200):
-        arima_model = auto_arima(df_train_1[df_train_1.columns[0]],start_p=0, d=1, start_q=0, max_p=5, max_d=5, max_q=5, start_P=0, D=1, start_Q=0, max_P=5, max_D=5, max_Q=5, m=24, seasonal=True, error_action='warn', trace=True, suppress_warnings=True, stepwise=True, random_state=20, n_fits=50)
+tscv = TimeSeriesSplit(n_splits=5)
 
-print(arima_model.summary())
+for train_index, test_index in tscv.split(df_train):
+    print(train_index)
+    print(test_index)
 
-df_predictions_1 = arima_model.predict(n_periods=len(df_validation_1[df_validation_1.columns[0]]))
+for i in range(5):
+    df_train_1, df_validation_1 = model_arima_data.split_data_hour_2_weeks(df_train, start_train_date, start_validation_date)
 
-print(df_predictions_1)
+    with StepwiseContext(max_steps=100):
+        with StepwiseContext(max_dur=500):
+            arima_model = auto_arima(df_train_1[df_train_1.columns[0]], test='adf', d=None, D=None, m=24, seasonal=True, error_action='warn', trace=True, suppress_warnings=True, stepwise=True, random_state=20, n_fits=100)
 
-plt.plot(df_train_1[df_train_1.columns[0]], color = "black")
-plt.plot(df_validation_1[df_validation_1.columns[0]], color = "red")
-plt.plot(df_predictions_1, color = "blue")
-plt.title("Predicted data")
-plt.ylabel(df_imputed_hour.columns[column_number])
-plt.xlabel('TimeStamp')
-plt.show()
+    print(arima_model.summary())
+
+    df_predictions_1 = arima_model.predict(n_periods=len(df_validation_1[df_validation_1.columns[0]]))
+
+    df_predictions_1.index = df_validation_1.index
+
+    #plt.plot(df_train_1[df_train_1.columns[0]], color = "black")
+    #plt.plot(df_validation_1[df_validation_1.columns[0]], color = "red")
+    #plt.plot(df_predictions_1, color = "blue")
+    #plt.title("Predicted data")
+    #plt.ylabel(df_imputed_hour.columns[column_number])
+    #plt.xlabel('TimeStamp')
+    #plt.show()
+
+    with open('output.txt', 'a') as f:
+        print('Following data is for following training size: ', training_period_days, ' days', file=f)
+        print(arima_model.params, file=f)
+        print('AIC: ', arima_model.aic().round(3), file=f)
+        rmse = sqrt(mean_squared_error(df_validation_1[df_validation_1.columns[0]], df_predictions_1))
+        print('RMSE: ', str(rmse).replace('.', ','), file=f)
+
+    start_validation_date = start_validation_date + offset_validation
+    print('Validation start: ', start_validation_date)
+    start_train_date = start_validation_date - training_period
+    print('Train start: ', start_train_date)
+
+#plt.plot(df_train_1[df_train_1.columns[0]], color = "black")
+#plt.plot(df_validation_1[df_validation_1.columns[0]], color = "red")
+#plt.plot(df_predictions_1, color = "blue")
+#plt.title("Predicted data")
+#plt.ylabel(df_imputed_hour.columns[column_number])
+#plt.xlabel('TimeStamp')
+#plt.show()
 
 #7. Evaluation
 
-rmse = sqrt(mean_squared_error(df_validation_1[df_validation_1.columns[0]], df_predictions_1))
-print("RMSE ", rmse)
+#print('AIC: ', arima_model.aic().round(3))
+#rmse = sqrt(mean_squared_error(df_validation_1[df_validation_1.columns[0]], df_predictions_1))
+#mae = mean_absolute_error(df_validation_1[df_validation_1.columns[0]], df_predictions_1)
+#mape = mean_absolute_percentage_error(df_validation_1[df_validation_1.columns[0]], df_predictions_1)
+#print('RMSE: ', str(rmse).replace('.', ','))
+#print('MAE: ', str(mae).replace('.', ','))
+#print('MAPE: ', str(mape).replace('.', ','))
 
 #End Evaluation
 

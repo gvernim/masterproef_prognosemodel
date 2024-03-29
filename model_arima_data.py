@@ -15,13 +15,13 @@ def split_data_hour_2_weeks(df, start_date, split_date):
     train = df[start_date:split_date-diff]
     validation = df[split_date:split_date+validation_period]
 
-    plt.plot(train[validation.columns[0]], color = "black")
-    plt.plot(validation[validation.columns[0]], color = "red")
-    plt.title("Train/Validation split Data")
-    plt.ylabel(df.columns[0])
-    plt.xlabel('TimeStamp')
-    sns.set_theme()
-    plt.show()
+    #plt.plot(train[validation.columns[0]], color = "black")
+    #plt.plot(validation[validation.columns[0]], color = "red")
+    #plt.title("Train/Validation split Data")
+    #plt.ylabel(df.columns[0])
+    #plt.xlabel('TimeStamp')
+    #sns.set_theme()
+    #plt.show()
     return train, validation
 
 def split_data_2(df, col_number, split_perc):

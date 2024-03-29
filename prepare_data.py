@@ -120,15 +120,15 @@ def find_missing_data_periods(df, rolling_records=68):
 
     #Show periods with broken data
 
-    df_dates['bad data'] = df_dates[df_dates.columns[0]]
-    df_dates.loc[df_dates['broken_record']==False, 'bad data'] = 0
-    sns.set_theme()
+    #df_dates['bad data'] = df_dates[df_dates.columns[0]]
+    #df_dates.loc[df_dates['broken_record']==False, 'bad data'] = 0
+    #sns.set_theme()
     #sns.lineplot(df_dates.loc[:,0], color="blue")
-    df_dates.plot(y=[df_dates.columns[0], 'bad data'], color={df_dates.columns[0]: 'b','bad data': 'red'})
+    #df_dates.plot(y=[df_dates.columns[0], 'bad data'], color={df_dates.columns[0]: 'b','bad data': 'red'})
 
-    plt.show()
+    #plt.show()
 
-    del df_dates['bad data']
+    #del df_dates['bad data']
 
     return df_dates, df_periods
 
@@ -273,19 +273,19 @@ def replace_broken_records_knn(df, col_number, corr_col_number):
     df_imputed[[df.columns[col_number], df.columns[corr_col_number]]] = imputer.fit_transform(df_imputed[[df.columns[col_number], df.columns[corr_col_number]]])
 
     # Create a matplotlib plot
-    plt.figure(figsize=(12,8))
-    df_imputed[df.columns[col_number]].plot(style='.-', label=df.columns[col_number])
+    #plt.figure(figsize=(12,8))
+    #df_imputed[df.columns[col_number]].plot(style='.-', label=df.columns[col_number])
 
     # Add points where data was imputed
-    imputed_indices = df[df[df.columns[col_number]].isna()].index
-    plt.scatter(imputed_indices, df_imputed.loc[imputed_indices, df.columns[col_number]], color='red', label='KNN Imputation')
+    #imputed_indices = df[df[df.columns[col_number]].isna()].index
+    #plt.scatter(imputed_indices, df_imputed.loc[imputed_indices, df.columns[col_number]], color='red', label='KNN Imputation')
 
     # Set title and labels
-    plt.title('KNN Imputation')
-    plt.xlabel(df.columns[corr_col_number])
-    plt.ylabel(df.columns[col_number])
-    plt.legend()
-    plt.show()
+    #plt.title('KNN Imputation')
+    #plt.xlabel(df.columns[corr_col_number])
+    #plt.ylabel(df.columns[col_number])
+    #plt.legend()
+    #plt.show()
     return df_imputed
 
     #Seasonal decompose Decomposition, does not work as required
@@ -440,13 +440,13 @@ def split_data(df, split_date):
 
     test = df.loc[split_date:]
 
-    plt.plot(train, color = "black")
-    plt.plot(test, color = "red")
-    plt.title("Train/Test split Data")
-    plt.ylabel(df.columns[0])
-    plt.xlabel('TimeStamp')
-    sns.set_theme()
-    plt.show()
+    #plt.plot(train, color = "black")
+    #plt.plot(test, color = "red")
+    #plt.title("Train/Test split Data")
+    #plt.ylabel(df.columns[0])
+    #plt.xlabel('TimeStamp')
+    #sns.set_theme()
+    #plt.show()
     return train, test
 
 #Split based on a test percentage

@@ -17,7 +17,7 @@ def correlation_between_columns(df_1, df_2, col_number_1, col_number_2):
 #Decomposition analysis
 def analyze_decomp_column(df, period):
     #decompose_add = seasonal_decompose(df[df.columns[0]] ,model='additive', period=period)
-    decompose_add = STL(df[df.columns[0]] , period=period, seasonal=25, trend=73, seasonal_deg=5, trend_deg=5, robust=True).fit()
+    decompose_add = STL(df[df.columns[0]] , period=24, seasonal=151, trend=401, seasonal_deg=1, trend_deg=3, robust=False).fit()
     decompose_add.plot()
     plt.show()
 
@@ -31,12 +31,12 @@ def analyze_decomp_column(df, period):
 
 #    decompose_multi = seasonal_decompose(df[df.columns[0]] ,model='multiplicative', period=period)
 #    decompose_multi.plot()
-#    plt.show()
+    plt.show()
 
 #    seasonal_multi = decompose_multi.seasonal
 #    non_seasonal_multi = decompose_multi.trend
 
-    return seasonal_add, non_seasonal_add   #, seasonal_multi, non_seasonal_multi
+    return seasonal_add, non_seasonal_add, residuals   #, seasonal_multi, non_seasonal_multi
 
 def analyze_decomp_column_period_start_end(df, start_period, end_period, period):
     df = df[start_period:end_period]
