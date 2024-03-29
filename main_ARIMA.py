@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import datetime
-from math import sqrt
+from math import sqrt, floor
 from pandas.tseries.offsets import DateOffset
 
 #Import statistical analysis
@@ -224,37 +224,78 @@ df_train, df_test = model_data_preparation.split_data(df_imputed_hour, start_tes
 
 #Set these to find test result
 training_period_days = 7
-offset_validation = DateOffset(months=1)
-training_period = datetime.timedelta(days=training_period_days)
+validation_period_days = 14
 
-start_validation_date = pd.to_datetime('2023-07-01 00:00:00+01:00')
+#offset_validation = DateOffset(months=1)
+#training_period = datetime.timedelta(days=training_period_days)
 
-start_train_date = start_validation_date - training_period
+#start_validation_date = pd.to_datetime('2023-07-01 00:00:00+01:00')
 
+#start_train_date = start_validation_date - training_period
 
+n_splits = floor(len(df_train) / (period_freq*(training_period_days+validation_period_days)))
+print(n_splits)
+
+tscv = TimeSeriesSplit(n_splits=n_splits, max_train_size=period_freq*training_period_days, test_size=period_freq*validation_period_days)
 
 #End Model data preparation
 
+
+
 #6. ARIMA Model
 
-tscv = TimeSeriesSplit(n_splits=5)
+df_results = pd.DataFrame(columns=['start train date','end train date','start validation date','end validation date','training size days','validation size days', 'ARIMA order','AIC_A','RMSE_A', 'MAE_A', 'MAPE_A', 'SARIMA order', 'AIC_B', 'RMSE_B', 'MAE_B', 'MAPE_B'])
 
 for train_index, test_index in tscv.split(df_train):
-    print(train_index)
-    print(test_index)
 
-for i in range(5):
-    df_train_1, df_validation_1 = model_arima_data.split_data_hour_2_weeks(df_train, start_train_date, start_validation_date)
+    df_train_1, df_validation_1 = df_train.iloc[train_index], df_train.iloc[test_index]
+
+    print(df_train_1)
+    print(df_validation_1)
 
     with StepwiseContext(max_steps=100):
         with StepwiseContext(max_dur=500):
-            arima_model = auto_arima(df_train_1[df_train_1.columns[0]], test='adf', d=None, D=None, m=24, seasonal=True, error_action='warn', trace=True, suppress_warnings=True, stepwise=True, random_state=20, n_fits=100)
+            arima_model = auto_arima(df_train_1[df_train_1.columns[0]], test='adf', max_p=None, d=None, max_q=None, seasonal=False, information_criterion='aic',error_action='warn', trace=True, suppress_warnings=True, stepwise=True, random_state=20, n_fits=100)
+            sarima_model = auto_arima(df_train_1[df_train_1.columns[0]], test='adf', max_p=None, d=None, max_q=None, max_P=None, D=None, max_Q=None, m=24, seasonal=True, error_action='warn', trace=True, suppress_warnings=True, stepwise=True, random_state=20, n_fits=100)
+    print(train_index)
+    print(test_index)
 
     print(arima_model.summary())
+    print(sarima_model.summary())
 
     df_predictions_1 = arima_model.predict(n_periods=len(df_validation_1[df_validation_1.columns[0]]))
+    df_predictions_2 = sarima_model.predict(n_periods=len(df_validation_1[df_validation_1.columns[0]]))
 
     df_predictions_1.index = df_validation_1.index
+    df_predictions_2.index = df_validation_1.index
+
+    rmse_a = sqrt(mean_squared_error(df_validation_1[df_validation_1.columns[0]], df_predictions_1))
+    mae_a = sqrt(mean_absolute_error(df_validation_1[df_validation_1.columns[0]], df_predictions_1))
+    mape_a = sqrt(mean_absolute_percentage_error(df_validation_1[df_validation_1.columns[0]], df_predictions_1))
+    rmse_b = sqrt(mean_squared_error(df_validation_1[df_validation_1.columns[0]], df_predictions_2))
+    mae_b = sqrt(mean_absolute_error(df_validation_1[df_validation_1.columns[0]], df_predictions_2))
+    mape_b = sqrt(mean_absolute_percentage_error(df_validation_1[df_validation_1.columns[0]], df_predictions_2))
+
+    d = {'start train date': df_train_1.index[0], 'end train date': df_train_1.index[-1], 'start validation date': df_train_1.index[0], 'end validation date': df_train_1.index[-1], 'training size days':training_period_days,'validation size days': validation_period_days, 'ARIMA order':arima_model.get_params().get('order'),'AIC_A': arima_model.aic().round(3),'RMSE_A': rmse_a, 'MAE_A': mae_a, 'MAPE_A': mape_a, 'SARIMA order': str(sarima_model.get_params().get('order')) + str(sarima_model.get_params().get('seasonal_order')), 'AIC_B':sarima_model.aic().round(3), 'RMSE_B': rmse_b, 'MAE_B': mae_b, 'MAPE_B': mape_b}
+    df_result = pd.DataFrame(d)
+    df_results = pd.concat([df_results, df_result], ignore_index=True)
+
+    with open('output.txt', 'a') as f:
+
+        print('Training size in days: ', training_period_days, file=f)
+        print('Validationdata size in days: ', validation_period_days, ' days', file=f)
+        print('Start training: ', df_train_1.index[0], file=f)
+        print('End training: ', df_train_1.index[-1], file=f)
+        print('Start validation: ', df_train_1.index[0], file=f)
+        print('End validation: ', df_train_1.index[-1], file=f)
+
+        print('ARIMA order: ', arima_model.get_params().get('order'), file=f)
+        print('AIC: ', str(arima_model.aic().round(3)).replace('.', ','), file=f)
+        print('RMSE: ', str(rmse_a).replace('.', ','), file=f)
+
+        print('SARIMA order: ', sarima_model.get_params().get('order', 'seasonal_order'), sarima_model.get_params().get('seasonal_order'), file=f)
+        print('AIC: ', str(sarima_model.aic().round(3)).replace('.', ','), file=f)
+        print('RMSE: ', str(rmse_b).replace('.', ','), file=f)
 
     #plt.plot(df_train_1[df_train_1.columns[0]], color = "black")
     #plt.plot(df_validation_1[df_validation_1.columns[0]], color = "red")
@@ -264,18 +305,8 @@ for i in range(5):
     #plt.xlabel('TimeStamp')
     #plt.show()
 
-    with open('output.txt', 'a') as f:
-        print('Following data is for following training size: ', training_period_days, ' days', file=f)
-        print(arima_model.params, file=f)
-        print('AIC: ', arima_model.aic().round(3), file=f)
-        rmse = sqrt(mean_squared_error(df_validation_1[df_validation_1.columns[0]], df_predictions_1))
-        print('RMSE: ', str(rmse).replace('.', ','), file=f)
 
-    start_validation_date = start_validation_date + offset_validation
-    print('Validation start: ', start_validation_date)
-    start_train_date = start_validation_date - training_period
-    print('Train start: ', start_train_date)
-
+#Plot predictions
 #plt.plot(df_train_1[df_train_1.columns[0]], color = "black")
 #plt.plot(df_validation_1[df_validation_1.columns[0]], color = "red")
 #plt.plot(df_predictions_1, color = "blue")
@@ -295,5 +326,13 @@ for i in range(5):
 #print('MAPE: ', str(mape).replace('.', ','))
 
 #End Evaluation
+        
+#8. Export results
+
+with pd.ExcelWriter('/output_arima.xlsx', mode='a', engine='openpyxl', datetime_format="DD-MM-YYYY HH:MM:SS") as writer:
+    df_results.to_excel(excel_writer=writer, sheet_name='arima_training_size_analysis')
+    writer.close()
+
+#End Export results
 
 #End main

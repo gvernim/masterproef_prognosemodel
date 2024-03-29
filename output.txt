@@ -1,0 +1,408 @@
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-05-01 01:00:00+02:00
+End training:  2023-05-08 00:00:00+02:00
+Start validation:  2023-05-01 01:00:00+02:00
+End validation:  2023-05-08 00:00:00+02:00
+ARIMA order:  (2, 0, 1)
+AIC:  1426,922
+RMSE:  50,55764543025012
+SARIMA order:  (4, 0, 0) (2, 0, 0, 24)
+AIC:  1415,117
+RMSE:  48,75542725965086
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-05-15 01:00:00+02:00
+End training:  2023-05-22 00:00:00+02:00
+Start validation:  2023-05-15 01:00:00+02:00
+End validation:  2023-05-22 00:00:00+02:00
+ARIMA order:  (3, 0, 1)
+AIC:  1473,413
+RMSE:  60,20547803586504
+SARIMA order:  (2, 0, 3) (2, 0, 0, 24)
+AIC:  1459,036
+RMSE:  57,74605782511329
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-05-29 01:00:00+02:00
+End training:  2023-06-05 00:00:00+02:00
+Start validation:  2023-05-29 01:00:00+02:00
+End validation:  2023-06-05 00:00:00+02:00
+ARIMA order:  (3, 0, 0)
+AIC:  1406,053
+RMSE:  62,342210123718985
+SARIMA order:  (1, 0, 2) (1, 0, 2, 24)
+AIC:  1346,225
+RMSE:  19,17413596863786
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-06-12 01:00:00+02:00
+End training:  2023-06-19 00:00:00+02:00
+Start validation:  2023-06-12 01:00:00+02:00
+End validation:  2023-06-19 00:00:00+02:00
+ARIMA order:  (4, 0, 1)
+AIC:  1459,437
+RMSE:  50,17551050456799
+SARIMA order:  (1, 0, 0) (2, 0, 1, 24)
+AIC:  1454,093
+RMSE:  34,88637910577209
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-06-26 01:00:00+02:00
+End training:  2023-07-03 00:00:00+02:00
+Start validation:  2023-06-26 01:00:00+02:00
+End validation:  2023-07-03 00:00:00+02:00
+ARIMA order:  (2, 0, 1)
+AIC:  1428,904
+RMSE:  51,91387954242492
+SARIMA order:  (2, 0, 1) (2, 0, 0, 24)
+AIC:  1429,003
+RMSE:  51,65288829118824
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-07-10 01:00:00+02:00
+End training:  2023-07-17 00:00:00+02:00
+Start validation:  2023-07-10 01:00:00+02:00
+End validation:  2023-07-17 00:00:00+02:00
+ARIMA order:  (2, 0, 1)
+AIC:  1501,261
+RMSE:  46,79086538409981
+SARIMA order:  (1, 0, 1) (1, 0, 2, 24)
+AIC:  1490,903
+RMSE:  36,856637148606055
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-07-24 01:00:00+02:00
+End training:  2023-07-31 00:00:00+02:00
+Start validation:  2023-07-24 01:00:00+02:00
+End validation:  2023-07-31 00:00:00+02:00
+ARIMA order:  (3, 0, 2)
+AIC:  1535,582
+RMSE:  54,093972093323686
+SARIMA order:  (1, 0, 0) (1, 0, 0, 24)
+AIC:  1543,366
+RMSE:  44,235139109019585
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-08-07 01:00:00+02:00
+End training:  2023-08-14 00:00:00+02:00
+Start validation:  2023-08-07 01:00:00+02:00
+End validation:  2023-08-14 00:00:00+02:00
+ARIMA order:  (5, 0, 1)
+AIC:  1411,346
+RMSE:  48,69697410191829
+SARIMA order:  (1, 0, 1) (1, 0, 1, 24)
+AIC:  1402,198
+RMSE:  32,58571267570883
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-08-21 01:00:00+02:00
+End training:  2023-08-28 00:00:00+02:00
+Start validation:  2023-08-21 01:00:00+02:00
+End validation:  2023-08-28 00:00:00+02:00
+ARIMA order:  (2, 0, 1)
+AIC:  1402,071
+RMSE:  52,21654356427773
+SARIMA order:  (2, 0, 1) (1, 0, 2, 24)
+AIC:  1386,325
+RMSE:  51,64214522539601
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-09-04 01:00:00+02:00
+End training:  2023-09-11 00:00:00+02:00
+Start validation:  2023-09-04 01:00:00+02:00
+End validation:  2023-09-11 00:00:00+02:00
+ARIMA order:  (3, 0, 3)
+AIC:  1170,53
+RMSE:  46,96026334558631
+SARIMA order:  (2, 0, 2) (1, 0, 0, 24)
+AIC:  956,527
+RMSE:  28,286243167852223
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-09-18 01:00:00+02:00
+End training:  2023-09-25 00:00:00+02:00
+Start validation:  2023-09-18 01:00:00+02:00
+End validation:  2023-09-25 00:00:00+02:00
+ARIMA order:  (3, 0, 4)
+AIC:  1458,96
+RMSE:  38,98093065034642
+SARIMA order:  (1, 0, 3) (1, 0, 0, 24)
+AIC:  1449,311
+RMSE:  36,39774185283855
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-10-02 01:00:00+02:00
+End training:  2023-10-09 00:00:00+02:00
+Start validation:  2023-10-02 01:00:00+02:00
+End validation:  2023-10-09 00:00:00+02:00
+ARIMA order:  (3, 0, 1)
+AIC:  1264,104
+RMSE:  30,300794371635444
+SARIMA order:  (2, 0, 2) (2, 0, 0, 24)
+AIC:  1231,329
+RMSE:  23,878942182316646
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-10-16 01:00:00+02:00
+End training:  2023-10-23 00:00:00+02:00
+Start validation:  2023-10-16 01:00:00+02:00
+End validation:  2023-10-23 00:00:00+02:00
+ARIMA order:  (2, 0, 2)
+AIC:  1316,545
+RMSE:  20,25748741279254
+SARIMA order:  (2, 0, 2) (1, 0, 1, 24)
+AIC:  1308,367
+RMSE:  16,290377350269925
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-10-30 00:00:00+01:00
+End training:  2023-11-05 23:00:00+01:00
+Start validation:  2023-10-30 00:00:00+01:00
+End validation:  2023-11-05 23:00:00+01:00
+ARIMA order:  (1, 0, 1)
+AIC:  1194,243
+RMSE:  14,644297761433226
+SARIMA order:  (4, 0, 1) (1, 0, 2, 24)
+AIC:  1163,335
+RMSE:  14,640458705555787
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-11-13 00:00:00+01:00
+End training:  2023-11-19 23:00:00+01:00
+Start validation:  2023-11-13 00:00:00+01:00
+End validation:  2023-11-19 23:00:00+01:00
+ARIMA order:  (2, 0, 0)
+AIC:  1012,611
+RMSE:  13,125795019869951
+SARIMA order:  (2, 0, 0) (0, 0, 0, 24)
+AIC:  1012,611
+RMSE:  13,125795019869951
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-11-27 00:00:00+01:00
+End training:  2023-12-03 23:00:00+01:00
+Start validation:  2023-11-27 00:00:00+01:00
+End validation:  2023-12-03 23:00:00+01:00
+ARIMA order:  (2, 0, 0)
+AIC:  1152,763
+RMSE:  9,077504821251921
+SARIMA order:  (2, 0, 0) (0, 0, 0, 24)
+AIC:  1152,763
+RMSE:  9,077504821251921
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-12-11 00:00:00+01:00
+End training:  2023-12-17 23:00:00+01:00
+Start validation:  2023-12-11 00:00:00+01:00
+End validation:  2023-12-17 23:00:00+01:00
+ARIMA order:  (2, 0, 3)
+AIC:  1038,663
+RMSE:  8,353658874366152
+SARIMA order:  (3, 0, 0) (2, 0, 0, 24)
+AIC:  1039,229
+RMSE:  8,33371167859571
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-05-01 01:00:00+02:00
+End training:  2023-05-08 00:00:00+02:00
+Start validation:  2023-05-01 01:00:00+02:00
+End validation:  2023-05-08 00:00:00+02:00
+ARIMA order:  (2, 0, 1)
+AIC:  1426,922
+RMSE:  50,55764543025012
+SARIMA order:  (4, 0, 0) (2, 0, 0, 24)
+AIC:  1415,117
+RMSE:  48,75542725965086
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-05-15 01:00:00+02:00
+End training:  2023-05-22 00:00:00+02:00
+Start validation:  2023-05-15 01:00:00+02:00
+End validation:  2023-05-22 00:00:00+02:00
+ARIMA order:  (3, 0, 1)
+AIC:  1473,413
+RMSE:  60,20547803586504
+SARIMA order:  (2, 0, 3) (2, 0, 0, 24)
+AIC:  1459,036
+RMSE:  57,74605782511329
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-05-29 01:00:00+02:00
+End training:  2023-06-05 00:00:00+02:00
+Start validation:  2023-05-29 01:00:00+02:00
+End validation:  2023-06-05 00:00:00+02:00
+ARIMA order:  (3, 0, 0)
+AIC:  1406,053
+RMSE:  62,342210123718985
+SARIMA order:  (1, 0, 2) (1, 0, 2, 24)
+AIC:  1346,225
+RMSE:  19,17413596863786
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-06-12 01:00:00+02:00
+End training:  2023-06-19 00:00:00+02:00
+Start validation:  2023-06-12 01:00:00+02:00
+End validation:  2023-06-19 00:00:00+02:00
+ARIMA order:  (4, 0, 1)
+AIC:  1459,437
+RMSE:  50,17551050456799
+SARIMA order:  (1, 0, 0) (2, 0, 1, 24)
+AIC:  1454,093
+RMSE:  34,88637910577209
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-06-26 01:00:00+02:00
+End training:  2023-07-03 00:00:00+02:00
+Start validation:  2023-06-26 01:00:00+02:00
+End validation:  2023-07-03 00:00:00+02:00
+ARIMA order:  (2, 0, 1)
+AIC:  1428,904
+RMSE:  51,91387954242492
+SARIMA order:  (2, 0, 1) (2, 0, 0, 24)
+AIC:  1429,003
+RMSE:  51,65288829118824
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-07-10 01:00:00+02:00
+End training:  2023-07-17 00:00:00+02:00
+Start validation:  2023-07-10 01:00:00+02:00
+End validation:  2023-07-17 00:00:00+02:00
+ARIMA order:  (2, 0, 1)
+AIC:  1501,261
+RMSE:  46,79086538409981
+SARIMA order:  (1, 0, 1) (1, 0, 2, 24)
+AIC:  1490,903
+RMSE:  36,856637148606055
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-07-24 01:00:00+02:00
+End training:  2023-07-31 00:00:00+02:00
+Start validation:  2023-07-24 01:00:00+02:00
+End validation:  2023-07-31 00:00:00+02:00
+ARIMA order:  (3, 0, 2)
+AIC:  1535,582
+RMSE:  54,093972093323686
+SARIMA order:  (1, 0, 0) (1, 0, 0, 24)
+AIC:  1543,366
+RMSE:  44,235139109019585
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-08-07 01:00:00+02:00
+End training:  2023-08-14 00:00:00+02:00
+Start validation:  2023-08-07 01:00:00+02:00
+End validation:  2023-08-14 00:00:00+02:00
+ARIMA order:  (5, 0, 1)
+AIC:  1411,346
+RMSE:  48,69697410191829
+SARIMA order:  (1, 0, 1) (1, 0, 1, 24)
+AIC:  1402,198
+RMSE:  32,58571267570883
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-08-21 01:00:00+02:00
+End training:  2023-08-28 00:00:00+02:00
+Start validation:  2023-08-21 01:00:00+02:00
+End validation:  2023-08-28 00:00:00+02:00
+ARIMA order:  (2, 0, 1)
+AIC:  1402,071
+RMSE:  52,21654356427773
+SARIMA order:  (2, 0, 1) (1, 0, 2, 24)
+AIC:  1386,325
+RMSE:  51,64214522539601
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-09-04 01:00:00+02:00
+End training:  2023-09-11 00:00:00+02:00
+Start validation:  2023-09-04 01:00:00+02:00
+End validation:  2023-09-11 00:00:00+02:00
+ARIMA order:  (3, 0, 3)
+AIC:  1170,53
+RMSE:  46,96026334558631
+SARIMA order:  (2, 0, 2) (1, 0, 0, 24)
+AIC:  956,527
+RMSE:  28,286243167852223
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-09-18 01:00:00+02:00
+End training:  2023-09-25 00:00:00+02:00
+Start validation:  2023-09-18 01:00:00+02:00
+End validation:  2023-09-25 00:00:00+02:00
+ARIMA order:  (3, 0, 4)
+AIC:  1458,96
+RMSE:  38,98093065034642
+SARIMA order:  (1, 0, 3) (1, 0, 0, 24)
+AIC:  1449,311
+RMSE:  36,39774185283855
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-10-02 01:00:00+02:00
+End training:  2023-10-09 00:00:00+02:00
+Start validation:  2023-10-02 01:00:00+02:00
+End validation:  2023-10-09 00:00:00+02:00
+ARIMA order:  (3, 0, 1)
+AIC:  1264,104
+RMSE:  30,300794371635444
+SARIMA order:  (2, 0, 2) (2, 0, 0, 24)
+AIC:  1231,329
+RMSE:  23,878942182316646
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-10-16 01:00:00+02:00
+End training:  2023-10-23 00:00:00+02:00
+Start validation:  2023-10-16 01:00:00+02:00
+End validation:  2023-10-23 00:00:00+02:00
+ARIMA order:  (2, 0, 2)
+AIC:  1316,545
+RMSE:  20,25748741279254
+SARIMA order:  (2, 0, 2) (1, 0, 1, 24)
+AIC:  1308,367
+RMSE:  16,290377350269925
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-10-30 00:00:00+01:00
+End training:  2023-11-05 23:00:00+01:00
+Start validation:  2023-10-30 00:00:00+01:00
+End validation:  2023-11-05 23:00:00+01:00
+ARIMA order:  (1, 0, 1)
+AIC:  1194,243
+RMSE:  14,644297761433226
+SARIMA order:  (4, 0, 1) (1, 0, 2, 24)
+AIC:  1163,335
+RMSE:  14,640458705555787
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-11-13 00:00:00+01:00
+End training:  2023-11-19 23:00:00+01:00
+Start validation:  2023-11-13 00:00:00+01:00
+End validation:  2023-11-19 23:00:00+01:00
+ARIMA order:  (2, 0, 0)
+AIC:  1012,611
+RMSE:  13,125795019869951
+SARIMA order:  (2, 0, 0) (0, 0, 0, 24)
+AIC:  1012,611
+RMSE:  13,125795019869951
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-11-27 00:00:00+01:00
+End training:  2023-12-03 23:00:00+01:00
+Start validation:  2023-11-27 00:00:00+01:00
+End validation:  2023-12-03 23:00:00+01:00
+ARIMA order:  (2, 0, 0)
+AIC:  1152,763
+RMSE:  9,077504821251921
+SARIMA order:  (2, 0, 0) (0, 0, 0, 24)
+AIC:  1152,763
+RMSE:  9,077504821251921
+Training size in days:  7
+Validationdata size in days:  14  days
+Start training:  2023-12-11 00:00:00+01:00
+End training:  2023-12-17 23:00:00+01:00
+Start validation:  2023-12-11 00:00:00+01:00
+End validation:  2023-12-17 23:00:00+01:00
+ARIMA order:  (2, 0, 3)
+AIC:  1038,663
+RMSE:  8,353658874366152
+SARIMA order:  (3, 0, 0) (2, 0, 0, 24)
+AIC:  1039,229
+RMSE:  8,33371167859571
