@@ -221,20 +221,13 @@ df_test_set_month = df_imputed_hour.loc[start_test_set:end_test_set_month]
 df_test_set_2_month = df_imputed_hour.loc[start_test_set:end_test_set_2_month]
 
 df_train, df_test = model_data_preparation.split_data(df_imputed_hour, start_test_set)
+print(df_train)
 
 #Set these to find test result
-training_period_days = 7
+training_period_days = 5
 validation_period_days = 14
 
-#offset_validation = DateOffset(months=1)
-#training_period = datetime.timedelta(days=training_period_days)
-
-#start_validation_date = pd.to_datetime('2023-07-01 00:00:00+01:00')
-
-#start_train_date = start_validation_date - training_period
-
-n_splits = floor(len(df_train) / (period_freq*(training_period_days+validation_period_days)))
-print(n_splits)
+n_splits = floor(len(df_train)/(period_freq*(validation_period_days)) - (training_period_days))
 
 tscv = TimeSeriesSplit(n_splits=n_splits, max_train_size=period_freq*training_period_days, test_size=period_freq*validation_period_days)
 
@@ -245,29 +238,43 @@ tscv = TimeSeriesSplit(n_splits=n_splits, max_train_size=period_freq*training_pe
 #6. ARIMA Model
 
 df_results = pd.DataFrame(columns=['start train date','end train date','start validation date','end validation date','training size days','validation size days', 'ARIMA order','AIC_A','RMSE_A', 'MAE_A', 'MAPE_A', 'SARIMA order', 'AIC_B', 'RMSE_B', 'MAE_B', 'MAPE_B'])
+first_run = True
+order_arima = ''
+order_sarima = ''
+s_order_sarima = ''
 
 for train_index, test_index in tscv.split(df_train):
 
     df_train_1, df_validation_1 = df_train.iloc[train_index], df_train.iloc[test_index]
 
-    print(df_train_1)
-    print(df_validation_1)
+    if first_run:
+        with StepwiseContext(max_steps=100):
+            with StepwiseContext(max_dur=500):
+                arima_model = auto_arima(df_train_1[df_train_1.columns[0]], test='adf', max_p=None, d=None, max_q=None, seasonal=False, information_criterion='aic',error_action='warn', trace=True, suppress_warnings=True, stepwise=True, random_state=20, n_fits=100)
+                sarima_model = auto_arima(df_train_1[df_train_1.columns[0]], test='adf', max_p=None, d=None, max_q=None, max_P=None, D=None, max_Q=None, m=24, seasonal=True, error_action='warn', trace=True, suppress_warnings=True, stepwise=True, random_state=20, n_fits=100)
 
-    with StepwiseContext(max_steps=100):
-        with StepwiseContext(max_dur=500):
-            arima_model = auto_arima(df_train_1[df_train_1.columns[0]], test='adf', max_p=None, d=None, max_q=None, seasonal=False, information_criterion='aic',error_action='warn', trace=True, suppress_warnings=True, stepwise=True, random_state=20, n_fits=100)
-            sarima_model = auto_arima(df_train_1[df_train_1.columns[0]], test='adf', max_p=None, d=None, max_q=None, max_P=None, D=None, max_Q=None, m=24, seasonal=True, error_action='warn', trace=True, suppress_warnings=True, stepwise=True, random_state=20, n_fits=100)
-    print(train_index)
-    print(test_index)
+        print(arima_model.summary())
+        print(sarima_model.summary())
 
-    print(arima_model.summary())
-    print(sarima_model.summary())
+        order_arima = arima_model.get_params().get('order')
+        order_sarima = sarima_model.get_params().get('order')
+        s_order_sarima = sarima_model.get_params().get('seasonal_order')
 
-    df_predictions_1 = arima_model.predict(n_periods=len(df_validation_1[df_validation_1.columns[0]]))
-    df_predictions_2 = sarima_model.predict(n_periods=len(df_validation_1[df_validation_1.columns[0]]))
+        df_predictions_1 = arima_model.predict(n_periods=len(df_validation_1[df_validation_1.columns[0]]))
+        df_predictions_2 = sarima_model.predict(n_periods=len(df_validation_1[df_validation_1.columns[0]]))
 
-    df_predictions_1.index = df_validation_1.index
-    df_predictions_2.index = df_validation_1.index
+        df_predictions_1.index = df_validation_1.index
+        df_predictions_2.index = df_validation_1.index
+
+        first_run=False
+    else:
+        arima_model = ARIMA(order=order_arima, suppress_warnings=True)
+        df_predictions_1 = arima_model.fit_predict(df_train_1[df_train_1.columns[0]], n_periods=len(df_validation_1[df_validation_1.columns[0]]))
+        sarima_model = ARIMA(order=order_sarima, seasonal_order=s_order_sarima, suppress_warnings=True)
+        df_predictions_2 = sarima_model.fit_predict(df_train_1[df_train_1.columns[0]], n_periods=len(df_validation_1[df_validation_1.columns[0]]))
+
+        df_predictions_1.index = df_validation_1.index
+        df_predictions_2.index = df_validation_1.index
 
     rmse_a = sqrt(mean_squared_error(df_validation_1[df_validation_1.columns[0]], df_predictions_1))
     mae_a = sqrt(mean_absolute_error(df_validation_1[df_validation_1.columns[0]], df_predictions_1))
@@ -276,8 +283,8 @@ for train_index, test_index in tscv.split(df_train):
     mae_b = sqrt(mean_absolute_error(df_validation_1[df_validation_1.columns[0]], df_predictions_2))
     mape_b = sqrt(mean_absolute_percentage_error(df_validation_1[df_validation_1.columns[0]], df_predictions_2))
 
-    d = {'start train date': df_train_1.index[0], 'end train date': df_train_1.index[-1], 'start validation date': df_train_1.index[0], 'end validation date': df_train_1.index[-1], 'training size days':training_period_days,'validation size days': validation_period_days, 'ARIMA order':arima_model.get_params().get('order'),'AIC_A': arima_model.aic().round(3),'RMSE_A': rmse_a, 'MAE_A': mae_a, 'MAPE_A': mape_a, 'SARIMA order': str(sarima_model.get_params().get('order')) + str(sarima_model.get_params().get('seasonal_order')), 'AIC_B':sarima_model.aic().round(3), 'RMSE_B': rmse_b, 'MAE_B': mae_b, 'MAPE_B': mape_b}
-    df_result = pd.DataFrame(d)
+    d = {'start train date': df_train_1.index[0].tz_localize(None), 'end train date': df_train_1.index[-1].tz_localize(None), 'start validation date': df_validation_1.index[0].tz_localize(None), 'end validation date': df_validation_1.index[-1].tz_localize(None), 'training size days':training_period_days,'validation size days': validation_period_days, 'ARIMA order':str(arima_model.get_params().get('order')),'AIC_A': arima_model.aic().round(3),'RMSE_A': rmse_a, 'MAE_A': mae_a, 'MAPE_A': mape_a, 'SARIMA order': str(sarima_model.get_params().get('order')) + str(sarima_model.get_params().get('seasonal_order')), 'AIC_B':sarima_model.aic().round(3), 'RMSE_B': rmse_b, 'MAE_B': mae_b, 'MAPE_B': mape_b}
+    df_result = pd.DataFrame([d])
     df_results = pd.concat([df_results, df_result], ignore_index=True)
 
     with open('output.txt', 'a') as f:
@@ -329,9 +336,10 @@ for train_index, test_index in tscv.split(df_train):
         
 #8. Export results
 
-with pd.ExcelWriter('/output_arima.xlsx', mode='a', engine='openpyxl', datetime_format="DD-MM-YYYY HH:MM:SS") as writer:
-    df_results.to_excel(excel_writer=writer, sheet_name='arima_training_size_analysis')
-    writer.close()
+sheet_name = 'arima_training_size_analysis_' + str(training_period_days) + '_' + str(validation_period_days)
+
+with pd.ExcelWriter('output_arima.xlsx', mode='a', engine='openpyxl', datetime_format="DD-MM-YYYY HH:MM:SS") as writer:
+    df_results.to_excel(excel_writer=writer, sheet_name=sheet_name)
 
 #End Export results
 

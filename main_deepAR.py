@@ -11,7 +11,9 @@ from pandas.tseries.offsets import DateOffset
 from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error
 
 #Import deepAR model
-
+from gluonts.dataset.pandas import PandasDataset
+from gluonts.torch.model.deepar import DeepAREstimator
+from gluonts.mx.trainer import Trainer
 
 #Import custom classes
 import load_data
@@ -161,31 +163,29 @@ df_test_set_month = df_imputed_hour.loc[start_test_set:end_test_set_month]
 df_test_set_2_month = df_imputed_hour.loc[start_test_set:end_test_set_2_month]
 
 df_train, df_test = model_data_preparation.split_data(df_imputed_hour, start_test_set)
+df_train['itemID'] = 0
 
-#Set these to find test result
-training_period_days = 35
-offset_validation = DateOffset(months=1)
-training_period = datetime.timedelta(days=training_period_days)
-
-start_validation_date = pd.to_datetime('2023-07-01 00:00:00+01:00')
-
-start_train_date = start_validation_date - training_period
+train_ds = PandasDataset.from_long_dataframe(df_train, target=df_train.columns[0], item_id='itemID', freq='H')
 
 #End Model data preparation
 
 #6. DeepAR Model
 
+estimator = DeepAREstimator(freq='H', prediction_length=len(df_test_set_2_weeks), num_layers=2, trainer=Trainer(epochs=30))
 
+predictor = estimator.train(train_ds)
+
+forecast = pd.DataFrame(data=list(predictor.predict(train_ds)), index=df_test_set_2_weeks.index)
 
 #End DeepAR Model
 
 #7. Evaluation
 
-#rmse = sqrt(mean_squared_error(df_test[df_test.columns[0]], forecast['yhat'].iloc[-len(df_test):]))
-#mae = mean_absolute_error(df_test[df_test.columns[0]], forecast['yhat'].iloc[-len(df_test):])
+rmse = sqrt(mean_squared_error(df_test_set_2_weeks, forecast))
+mae = mean_absolute_error(df_test_set_2_weeks, forecast)
 
-#print('RMSE: ', str(rmse).replace('.', ','))
-#print('MAE: ', str(mae).replace('.', ','))
+print('RMSE: ', str(rmse).replace('.', ','))
+print('MAE: ', str(mae).replace('.', ','))
 
 #End Evaluation
 

@@ -7,11 +7,10 @@ import datetime
 from math import sqrt
 
 #Import statistical analysis
-from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error
 
 #Import arima model
-from pmdarima.arima import auto_arima
-from statsmodels.tsa.arima.model import ARIMA
+from pmdarima.arima import auto_arima, ARIMA, StepwiseContext
 
 #Import custom classes
 import load_data
@@ -93,14 +92,14 @@ del df_2024['SmartCharging / meter-001 / ActiveEnergyImportTarrif2(Consumptie)']
 
 #2. Visualization data
 
-#visualize_data.visualize_columns(df)
+#visualize_data.visualize_columns(df[start_period:])
 #visualize_data.visualize_columns(df_2024)
 
-analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 0)    #Very weak
+#analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 0)    #Very weak
 #analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 1)    #Weak negative
 #analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 2)    #Very weak
 #analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 3)    #Weak negative
-#analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 4)     #Very strong correlation
+analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 4)     #Very strong correlation
 
 #visualize_data.visualize_column(df, column_number)
 #visualize_data.visualize_column_period_start_end(df, column_number, start_period, end_period)
@@ -346,7 +345,7 @@ df_train, df_test = model_data_preparation.split_data(df_imputed_hour, start_tes
 #6. ARIMA Model
 
 training_period = datetime.timedelta(days=31)
-start_train_date_1 = pd.to_datetime('2023-01-01 00:00:00+01:00')
+start_train_date_1 = pd.to_datetime('2023-06-01 00:00:00+01:00')
 split_train_date_1 = start_train_date_1 + training_period
 
 df_train_1, df_validation_1 = model_arima_data.split_data_hour_2_weeks(df_train, start_train_date_1, split_train_date_1)
@@ -357,19 +356,47 @@ df_train_1, df_validation_1 = model_arima_data.split_data_hour_2_weeks(df_train,
 #model = auto_arima(train, m=24, seasonal=True, stepwise=True)
 
 #Standard ARIMA Model
-order=(1,1,2)   #(1,2,3)
-seasonal_order=(1,1,2,24)   #
-#1,1,4 AIC=         1,2,2: AIC=       1,2,3: AIC=       1,2,4: AIC=     1,2,5: AIC=     2,1,0:  AIC=
-model_fit, predictions = model_arima_data.execute_arima(df_train_1[df_train_1.columns[0]], df_validation_1[df_validation_1.columns[0]], order, seasonal_order)
+order=(4,0,2)   #Full training and half
+sorder=(1,0,0)  #Full training
+seasonal_sorder=(2,0,0,24)   #Full training
+#model_fit, df_predictions_1 = model_arima_data.execute_arima(df_train[df_train.columns[0]], df_test_set_2_weeks[df_test_set_2_weeks.columns[0]], order, seasonal_order)
 
+#arima_model = ARIMA(order=order)
+#arima_model = arima_model.fit(df_train[df_train.columns[0],start_train_date_1:])
+#sarima_model = ARIMA(order=sorder, seasonal_order=seasonal_sorder)
+#sarima_model = sarima_model.fit(df_train[df_train.columns[0], start_train_date_1])
 
 #Rolling Forecast ARIMA model
 #1,1,4 AIC=       1,1,5: AIC=     1,2,3: AIC=
 #model_fit, predictions = model_arima_data.execute_rolling_arima(train, test, order)
 
-plt.plot(df_train_1[df_train_1.columns[0]], color = "black")
-plt.plot(df_validation_1[df_validation_1.columns[0]], color = "red")
-plt.plot(predictions, color = "blue")
+df_train = df_train[start_train_date_1:]
+
+with StepwiseContext(max_steps=100):
+    with StepwiseContext(max_dur=500):
+        arima_model = auto_arima(df_train[df_train.columns[0]], test='adf', max_p=None, d=None, max_q=None, seasonal=False, information_criterion='aic',error_action='warn', trace=True, suppress_warnings=True, stepwise=True, random_state=20, n_fits=100)
+        sarima_model = auto_arima(df_train[df_train.columns[0]], test='adf', max_p=None, d=None, max_q=None, max_P=None, D=None, max_Q=None, m=24, seasonal=True, error_action='warn', trace=True, suppress_warnings=True, stepwise=True, random_state=20, n_fits=100)
+
+print(arima_model.summary())
+print(sarima_model.summary())
+
+df_predictions_1 = arima_model.predict(n_periods=len(df_test_set_2_weeks[df_test_set_2_weeks.columns[0]]))
+df_predictions_2 = sarima_model.predict(n_periods=len(df_test_set_2_weeks[df_test_set_2_weeks.columns[0]]))
+
+df_predictions_1.index = df_test_set_2_weeks.index
+df_predictions_2.index = df_test_set_2_weeks.index
+
+plt.plot(df_train[df_train.columns[0]], color = "black")
+plt.plot(df_test_set_2_weeks[df_test_set_2_weeks.columns[0]], color = "red")
+plt.plot(df_predictions_1, color = "blue")
+plt.title("Predicted data")
+plt.ylabel(df_imputed_hour.columns[column_number])
+plt.xlabel('TimeStamp')
+plt.show()
+
+plt.plot(df_train[df_train.columns[0]], color = "black")
+plt.plot(df_test_set_2_weeks[df_test_set_2_weeks.columns[0]], color = "red")
+plt.plot(df_predictions_2, color = "blue")
 plt.title("Predicted data")
 plt.ylabel(df_imputed_hour.columns[column_number])
 plt.xlabel('TimeStamp')
@@ -379,8 +406,19 @@ plt.show()
 
 #7. Evaluation
 
-rmse = sqrt(mean_squared_error(df_validation_1[df_validation_1.columns[0]], predictions))
-print("RMSE: ", rmse)
+rmse = sqrt(mean_squared_error(df_test_set_2_weeks[df_test_set_2_weeks.columns[0]], df_predictions_1))
+mae = mean_absolute_error(df_test_set_2_weeks[df_test_set_2_weeks.columns[0]], df_predictions_1)
+mape = mean_absolute_percentage_error(df_test_set_2_weeks[df_test_set_2_weeks.columns[0]], df_predictions_1)
+print('RMSE: ', str(rmse).replace('.', ','))
+print('MAE: ', str(mae).replace('.', ','))
+print('MAPE: ', str(mape).replace('.', ','))
+
+rmse = sqrt(mean_squared_error(df_test_set_2_weeks[df_test_set_2_weeks.columns[0]], df_predictions_2))
+mae = mean_absolute_error(df_test_set_2_weeks[df_test_set_2_weeks.columns[0]], df_predictions_2)
+mape = mean_absolute_percentage_error(df_test_set_2_weeks[df_test_set_2_weeks.columns[0]], df_predictions_2)
+print('RMSE: ', str(rmse).replace('.', ','))
+print('MAE: ', str(mae).replace('.', ','))
+print('MAPE: ', str(mape).replace('.', ','))
 
 #End Evaluation
 

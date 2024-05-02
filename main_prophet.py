@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import datetime
-from math import sqrt
+from math import sqrt, log10
 from pandas.tseries.offsets import DateOffset
 
 #Import statistical analysis
@@ -170,14 +170,22 @@ df_train = model_data_prophet.convert_datetime_index_to_prophet_df(df_train)
 #6. Prophet Model
 number_of_predictions = 14*24
 
-model = Prophet(growth='linear', n_changepoints=30, yearly_seasonality=False, weekly_seasonality=False, daily_seasonality=False, seasonality_mode='additive')
-model.add_seasonality(name='daily', period=1, fourier_order=18).add_seasonality(name='yearly', period=365, fourier_order=5) #Set all seasonalities to false
+#Logarithmic transformation
+df_train['y'] = np.log(1 + df_train['y'])
+
+model = Prophet(growth='linear', n_changepoints=25, yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=True, seasonality_mode='additive', seasonality_prior_scale=10, changepoint_prior_scale = 0.05)
+#model.add_seasonality(name='daily', period=1, fourier_order=18).add_seasonality(name='yearly', period=365, fourier_order=6) #Set all seasonalities to false
 
 model.fit(df_train)
 
-future = model.make_future_dataframe(periods=len(df_test), freq='H', include_history=True)
+future = model.make_future_dataframe(periods=number_of_predictions, freq='H', include_history=True)
 
 forecast = model.predict(future)
+
+#Reverse transformation
+model.history['y'] = np.exp(model.history['y']) - 1
+for col in ['yhat', 'yhat_lower', 'yhat_upper']:
+    forecast[col] = np.exp(forecast[col]) - 1
 
 fig1 = model.plot(forecast)
 a = add_changepoints_to_plot(fig1.gca(), model, forecast)
@@ -186,13 +194,17 @@ plt.show()
 fig2 = model.plot_components(forecast)
 plt.show()
 
+fig3 = model.plot(forecast)
+plt.plot(df_test_set_2_weeks[df_test_set_2_weeks.columns[0]], color='red')
+plt.show()
+
 #End Prophet Model
 
 #7. Evaluation
 
 #.iloc[-len(df_test):]  Needed if include_history set to true
-rmse = sqrt(mean_squared_error(df_test[df_test.columns[0]], forecast['yhat'].iloc[-len(df_test):]))
-mae = mean_absolute_error(df_test[df_test.columns[0]], forecast['yhat'].iloc[-len(df_test):])
+rmse = sqrt(mean_squared_error(df_test_set_2_weeks[df_test_set_2_weeks.columns[0]], forecast['yhat'].iloc[-len(df_test_set_2_weeks):]))
+mae = mean_absolute_error(df_test_set_2_weeks[df_test_set_2_weeks.columns[0]], forecast['yhat'].iloc[-len(df_test_set_2_weeks):])
 
 print('RMSE: ', str(rmse).replace('.', ','))
 print('MAE: ', str(mae).replace('.', ','))

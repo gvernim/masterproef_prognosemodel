@@ -37,35 +37,42 @@ def show_missing_data_column(df, col_number):
 
 #Show possible extreme value points
 def find_missing_data_points(df):
+    neg_modifier = 50
+    pos_modifier = 100
     df_dates = pd.DataFrame(df, index=df.index)
 
     col_pos_mean = df_dates[df_dates>=0].mean()
     col_neg_mean = df_dates[df_dates<0].mean()
 
-    df_dates['broken_record'] = df_dates.iloc[:, 0].between(50*col_neg_mean.iloc[0], 100*col_pos_mean.iloc[0])
+    df_dates['broken_record'] = df_dates.iloc[:, 0].between(neg_modifier*col_neg_mean.iloc[0], pos_modifier*col_pos_mean.iloc[0])
     df_dates['broken_record'] = ~df_dates['broken_record']
 
     #sns.set_theme()
     #sns.lineplot(df)
     #sns.scatterplot(df_dates.iloc[:,0].where(df_dates['broken_record']), color="red")
 
-    plt.show()
+    #plt.show()
 
     return df_dates
 
 def find_outliers_IQR(df):
+   modifier = 4
+   df_dates = pd.DataFrame(df, index=df.index)
 
    q1=df.quantile(0.25)
-
    q3=df.quantile(0.75)
 
    IQR=q3-q1
 
-   outliers = df[((df<(q1-4*IQR)) | (df>(q3+4*IQR)))]
+   outliers = df[((df<(q1-modifier*IQR)) | (df>(q3+modifier*IQR)))]
 
-   sns.set_theme()
-   sns.lineplot(df)
-   sns.lineplot(outliers, color="red")
+   df_dates['broken_record'] = df_dates.iloc[:, 0].between(df<(q1-modifier*IQR), df>(q3+modifier*IQR))
+   df_dates['broken_record'] = ~df_dates['broken_record']
+   
+   #sns.set_theme()
+   #sns.lineplot(df)
+   #sns.scatterplot(df_dates.iloc[:,0].where(df_dates['broken_record']), color="red")
+
    plt.show()
 
    return outliers
@@ -111,8 +118,9 @@ def find_missing_data_periods(df, rolling_records=68):
     df_dates = df_reverse_dates[::-1]
     del df_dates['rolling_mean']
 
+    #Delete short periods for nighttime
     for index, row in df_periods.iterrows():
-        if len(df_dates[row.iloc[0]:row.iloc[1]]) <= 75 and df_dates.loc[row.iloc[0], df_dates.columns[0]] <= 0.4:
+        if len(df_dates[row.iloc[0]:row.iloc[1]]) <= 72 and df_dates.loc[row.iloc[0], df_dates.columns[0]] <= 0.4:
             df_dates.loc[row.iloc[0]:row.iloc[1], 'broken_record'] = False
             df_periods.drop(index, inplace=True)
 

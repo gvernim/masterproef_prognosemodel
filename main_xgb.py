@@ -19,7 +19,7 @@ import visualize_data
 import prepare_data
 import analyze_data
 import model_data_preparation
-import model_arima_data
+import model_data_xgb
 
 #User variables
 filename_1 = 'Merelbeke Energie.csv'
@@ -148,7 +148,7 @@ df_imputed_hour = prepare_data.replace_broken_records_knn(df_analyze, 0, 1)
 
 #4. Analysis
 
-#Lagged versies invullen als features => zie ACF
+
 
 #End analysis
 
@@ -156,36 +156,51 @@ df_imputed_hour = prepare_data.replace_broken_records_knn(df_analyze, 0, 1)
 #5. Model data preparation
 
 #Test samples
+del df_imputed_hour['solarradiation']
+
 df_test_set_2_weeks = df_imputed_hour.loc[start_test_set:end_test_set_2_weeks]
 df_test_set_month = df_imputed_hour.loc[start_test_set:end_test_set_month]
 df_test_set_2_month = df_imputed_hour.loc[start_test_set:end_test_set_2_month]
 
 df_train, df_test = model_data_preparation.split_data(df_imputed_hour, start_test_set)
 
-#Set these to find test result
-training_period_days = 35
-offset_validation = DateOffset(months=1)
-training_period = datetime.timedelta(days=training_period_days)
+df_train = model_data_xgb.create_features(df_train)
+df_test_set_2_weeks = model_data_xgb.create_features(df_test_set_2_weeks)
 
-start_validation_date = pd.to_datetime('2023-07-01 00:00:00+01:00')
+X_train = df_train[df_train.columns[1:]]
+Y_train = df_train[df_train.columns[0]]
 
-start_train_date = start_validation_date - training_period
+X_test = df_test_set_2_weeks[df_test_set_2_weeks.columns[1:]]
+Y_test = df_test_set_2_weeks[df_test_set_2_weeks.columns[0]]
 
 #End Model data preparation
 
 #6. XGB Model
 
-model = xgb.XGBRegressor
+model = xgb.XGBRegressor(n_estimators=1000, early_stopping_rounds=50)
+model.fit(X_train, Y_train, eval_set=[(X_train, Y_train)],verbose=True)
+
+forecast = model.predict(X_test)
+forecast = pd.DataFrame(data=forecast, index=X_test.index)
 
 #End XGB Model
 
 #7. Evaluation
 
-#rmse = sqrt(mean_squared_error(df_test[df_test.columns[0]], forecast['yhat'].iloc[-len(df_test):]))
-#mae = mean_absolute_error(df_test[df_test.columns[0]], forecast['yhat'].iloc[-len(df_test):])
+df_fi = pd.DataFrame(data=model.feature_importances_, index=model.feature_names_in_, columns=['importance'])
+df_fi.sort_values('importance').plot(kind='barh', title='Feature Importance')
+plt.show()
 
-#print('RMSE: ', str(rmse).replace('.', ','))
-#print('MAE: ', str(mae).replace('.', ','))
+ax = Y_test.plot(figsize=(15, 5))
+forecast.plot(ax=ax, style='.')
+ax.set_title('Prediction')
+plt.show()
+
+rmse = sqrt(mean_squared_error(Y_test, forecast))
+mae = mean_absolute_error(Y_test, forecast)
+
+print('RMSE: ', str(rmse).replace('.', ','))
+print('MAE: ', str(mae).replace('.', ','))
 
 #End Evaluation
 
