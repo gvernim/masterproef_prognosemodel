@@ -12,7 +12,8 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 #Import prophet model
 from prophet import Prophet
-from prophet.plot import plot_plotly, plot_components_plotly, add_changepoints_to_plot
+from prophet.plot import plot_plotly, plot_components_plotly, add_changepoints_to_plot, plot_cross_validation_metric
+from prophet.diagnostics import cross_validation, performance_metrics
 import itertools
 
 #Import custom classes
@@ -198,20 +199,38 @@ df_test_set['cloudcover'] = np.log(1 + df_test_set['cloudcover'])
 df_test_set['windspeed'] = np.log(1 + df_test_set['windspeed'])
 df_test_set['temp'] = np.log(1 + df_test_set['temp'])
 
-model = Prophet(growth='linear', yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=True, seasonality_mode='additive', seasonality_prior_scale=0.01, changepoint_prior_scale = 0.5)
-#model.add_seasonality(name='daily', period=1, fourier_order=18).add_seasonality(name='yearly', period=365, fourier_order=6) #Set all seasonalities to false
+param_grid = {  
+    'changepoint_prior_scale': [0.001, 0.01, 0.1, 0.5],
+    'seasonality_prior_scale': [0.01, 0.1, 1.0, 10.0],
+}
 
-#Adding feature/regressor
-model.add_regressor('solarradiation')
-#model.add_regressor('cloudcover')
-#model.add_regressor('windspeed')
-#model.add_regressor('temp')
+# Generate all combinations of parameters
+all_params = [dict(zip(param_grid.keys(), v)) for v in itertools.product(*param_grid.values())]
+rmses = []  # Store the RMSEs for each params here
 
-#model.add_regressor('lag1')
-#model.add_regressor('lag2')
-#model.add_regressor('lag3')
+for params in all_params:
+    model = Prophet(growth='linear', yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=True, seasonality_mode='additive', **params)
+    #model.add_seasonality(name='daily', period=1, fourier_order=18).add_seasonality(name='yearly', period=365, fourier_order=6) #Set all seasonalities to false
 
-model.fit(df_train)
+    #Adding feature/regressor
+    model.add_regressor('solarradiation')
+    #model.add_regressor('cloudcover')
+    #model.add_regressor('windspeed')
+    #model.add_regressor('temp')
+
+    model.fit(df_train)
+
+    df_cv = cross_validation(model, initial='180 days', period='30 days', horizon='14 days', parallel=None)
+    df_p = performance_metrics(df_cv, rolling_window=1)
+    print(df_p)
+    rmses.append(df_p[['rmse', 'mae']].values[0])
+
+tuning_results = pd.DataFrame(all_params)
+tuning_results['rmse'] = rmses
+print(tuning_results)
+
+best_params = all_params[np.argmin(rmses)]
+print(best_params)
 
 future = model.make_future_dataframe(periods=number_of_predictions, freq='H', include_history=False)
 
@@ -225,25 +244,23 @@ model.history['y'] = np.exp(model.history['y']) - 1
 for col in ['yhat', 'yhat_lower', 'yhat_upper']:#, 'solarradiation', 'cloudcover', 'windspeed', 'temp']:
     forecast[col] = np.exp(forecast[col]) - 1
 
-fig1 = model.plot(forecast)
-a = add_changepoints_to_plot(fig1.gca(), model, forecast)
-plt.plot('ds', 'y', data=df_test_set, color='red')
-plt.show()
+#fig1 = model.plot(forecast)
+#a = add_changepoints_to_plot(fig1.gca(), model, forecast)
+#plt.plot('ds', 'y', data=df_test_set, color='red')
+#plt.show()
 
-fig2 = model.plot_components(forecast)
-plt.show()
+#fig2 = model.plot_components(forecast)
+#plt.show()
 
-fig3 = model.plot(forecast)
-plt.plot('ds', 'y', data=df_test_set, color='red')
-plt.show()
+#fig3 = model.plot(forecast)
+#plt.plot('ds', 'y', data=df_test_set, color='red')
+#plt.show()
 
 #End Prophet Model
 
 #7. Evaluation
 
 #.iloc[-len(df_test):]  Needed if include_history set to true
-print(df_test_set[df_test_set.columns[0]])
-print(forecast['yhat'])
 rmse = sqrt(mean_squared_error(df_test_set['y'], forecast['yhat']))#.iloc[-len(df_test_set):]))
 mae = mean_absolute_error(df_test_set['y'], forecast['yhat'])#.iloc[-len(df_test_set):])
 

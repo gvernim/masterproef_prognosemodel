@@ -221,7 +221,6 @@ df_test_set_month = df_imputed_hour.loc[start_test_set:end_test_set_month]
 df_test_set_2_month = df_imputed_hour.loc[start_test_set:end_test_set_2_month]
 
 df_train, df_test = model_data_preparation.split_data(df_imputed_hour, start_test_set)
-print(df_train)
 
 #Set these to find test result
 training_period_days = 5

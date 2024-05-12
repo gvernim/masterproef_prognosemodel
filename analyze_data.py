@@ -29,12 +29,12 @@ def analyze_decomp_column(df, period):
     residuals.plot(title='Residuals', ax=ax[0])
     residuals.plot(title='Density', kind='kde', ax=ax[1])
 
-#    decompose_multi = seasonal_decompose(df[df.columns[0]] ,model='multiplicative', period=period)
-#    decompose_multi.plot()
+    #decompose_multi = seasonal_decompose(df[df.columns[0]] ,model='multiplicative', period=period)
+    #decompose_multi.plot()
     plt.show()
 
-#    seasonal_multi = decompose_multi.seasonal
-#    non_seasonal_multi = decompose_multi.trend
+    #seasonal_multi = decompose_multi.seasonal
+    #non_seasonal_multi = decompose_multi.trend
 
     return seasonal_add, non_seasonal_add, residuals   #, seasonal_multi, non_seasonal_multi
 

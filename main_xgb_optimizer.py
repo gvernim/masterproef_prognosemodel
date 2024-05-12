@@ -4,16 +4,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import datetime
-from math import sqrt, log10
+from math import sqrt
 from pandas.tseries.offsets import DateOffset
 
 #Import statistical analysis
-from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error
+from sklearn.model_selection import GridSearchCV
 
-#Import prophet model
-from prophet import Prophet
-from prophet.plot import plot_plotly, plot_components_plotly, add_changepoints_to_plot
-import itertools
+#Import xgb model
+import xgboost as xgb
 
 #Import custom classes
 import load_data
@@ -21,7 +20,7 @@ import visualize_data
 import prepare_data
 import analyze_data
 import model_data_preparation
-import model_data_prophet
+import model_data_xgb
 
 #User variables
 filename_1 = 'Merelbeke Energie.csv'
@@ -63,7 +62,7 @@ df_2024.columns = df.columns
 
 df_weer = load_data.load_extra_data_in_df()
 
-df_weer_test_set_1_day = df_weer.loc[start_test_set:end_test_set_1_day]
+df_weer_test_set_2_weeks = df_weer.loc[start_test_set:end_test_set_1_day]
 df_weer_test_set_2_weeks = df_weer.loc[start_test_set:end_test_set_2_weeks]
 df_weer_test_set_month = df_weer.loc[start_test_set:end_test_set_month]
 df_weer_test_set_2_month = df_weer.loc[start_test_set:end_test_set_2_month]
@@ -139,6 +138,7 @@ df_dates_hour['broken_record'] = np.where(df_dates_hour['broken_record'] >= 1, T
 df_col = prepare_data.convert_broken_records_to_nan(df_col, column_number, df_dates, df_periods)
 df_col_hour = prepare_data.convert_broken_records_to_nan(df_col_hour, column_number, df_dates_hour, df_periods)
 
+#Add weatherfeatures here
 df_analyze = df_col_hour.loc[start_period:end_period]
 df_features = df_weer.loc[start_period:end_period]
 df_analyze = pd.concat([df_analyze, df_features['solarradiation']], axis=1)
@@ -164,9 +164,15 @@ df_imputed_hour = prepare_data.replace_broken_records_knn(df_analyze, 0, 1)
 
 #Test samples
 
-#Lag features not possible in this model
-#lag_features = (1, 2, 3)
-#df_imputed_hour = model_data_prophet.create_lag_features(df, lag_features)
+#Features aanpassen
+#del df_imputed_hour['solarradiation']
+#del df_imputed_hour['cloudcover']
+del df_imputed_hour['windspeed']
+del df_imputed_hour['temp']
+lag_features = (1, 2, 3)
+
+df_imputed_hour = model_data_xgb.create_features(df_imputed_hour)
+#df_imputed_hour = model_data_xgb.create_lag_features(df_imputed_hour, lag_features)
 
 df_test_set_1_day = df_imputed_hour.loc[start_test_set:end_test_set_1_day]
 df_test_set_2_weeks = df_imputed_hour.loc[start_test_set:end_test_set_2_weeks]
@@ -175,80 +181,57 @@ df_test_set_2_month = df_imputed_hour.loc[start_test_set:end_test_set_2_month]
 
 df_train, df_test = model_data_preparation.split_data(df_imputed_hour, start_test_set)
 
-#Convert to correct format
-df_train = model_data_prophet.convert_datetime_index_to_prophet_df(df_train)
+#Set required test set here
+df_test_set = df_test_set_2_weeks
 
-#Set required testset here
-number_of_predictions = 14*24
-df_test_set = model_data_prophet.convert_datetime_index_to_prophet_df(df_test_set_2_weeks)
+print(df_train)
+
+X_train = df_train[df_train.columns[1:]]
+Y_train = df_train[df_train.columns[0]]
+
+X_test = df_test_set[df_test_set.columns[1:]]
+Y_test = df_test_set[df_test_set.columns[0]]
 
 #End Model data preparation
 
-#6. Prophet Model
+#6. XGB Model
 
-#Logarithmic transformation
-df_train['y'] = np.log(1 + df_train['y'])
-df_train['solarradiation'] = np.log(1 + df_train['solarradiation'])
-df_train['cloudcover'] = np.log(1 + df_train['cloudcover'])
-df_train['windspeed'] = np.log(1 + df_train['windspeed'])
-df_train['temp'] = np.log(1 + df_train['temp'])
+param_grid = {
+    'max_depth': [3, 5, 7],
+    'learning_rate': [0.1, 0.01, 0.001],
+    'subsample': [0.5, 0.7, 1],
+    'n_estimators': [50, 100, 150, 200, 250]
+}
 
-df_test_set['solarradiation'] = np.log(1 + df_test_set['solarradiation'])
-df_test_set['cloudcover'] = np.log(1 + df_test_set['cloudcover'])
-df_test_set['windspeed'] = np.log(1 + df_test_set['windspeed'])
-df_test_set['temp'] = np.log(1 + df_test_set['temp'])
+model = xgb.XGBRegressor()
 
-model = Prophet(growth='linear', yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=True, seasonality_mode='additive', seasonality_prior_scale=0.01, changepoint_prior_scale = 0.5)
-#model.add_seasonality(name='daily', period=1, fourier_order=18).add_seasonality(name='yearly', period=365, fourier_order=6) #Set all seasonalities to false
+grid_search = GridSearchCV(model, param_grid, cv=5, scoring='r2')
 
-#Adding feature/regressor
-model.add_regressor('solarradiation')
-#model.add_regressor('cloudcover')
-#model.add_regressor('windspeed')
-#model.add_regressor('temp')
+grid_search.fit(X_train, Y_train)
 
-#model.add_regressor('lag1')
-#model.add_regressor('lag2')
-#model.add_regressor('lag3')
+print("Best set of hyperparameters: ", grid_search.best_params_)
+print("Best score: ", grid_search.best_score_)
 
-model.fit(df_train)
+#End XGB Model
 
-future = model.make_future_dataframe(periods=number_of_predictions, freq='H', include_history=False)
 
-future = future.merge(df_test_set, how='left', on=['ds'])
-del future['y']
-
-forecast = model.predict(future)
-
-#Reverse transformation
-model.history['y'] = np.exp(model.history['y']) - 1
-for col in ['yhat', 'yhat_lower', 'yhat_upper']:#, 'solarradiation', 'cloudcover', 'windspeed', 'temp']:
-    forecast[col] = np.exp(forecast[col]) - 1
-
-fig1 = model.plot(forecast)
-a = add_changepoints_to_plot(fig1.gca(), model, forecast)
-plt.plot('ds', 'y', data=df_test_set, color='red')
-plt.show()
-
-fig2 = model.plot_components(forecast)
-plt.show()
-
-fig3 = model.plot(forecast)
-plt.plot('ds', 'y', data=df_test_set, color='red')
-plt.show()
-
-#End Prophet Model
 
 #7. Evaluation
 
-#.iloc[-len(df_test):]  Needed if include_history set to true
-print(df_test_set[df_test_set.columns[0]])
-print(forecast['yhat'])
-rmse = sqrt(mean_squared_error(df_test_set['y'], forecast['yhat']))#.iloc[-len(df_test_set):]))
-mae = mean_absolute_error(df_test_set['y'], forecast['yhat'])#.iloc[-len(df_test_set):])
+#df_fi = pd.DataFrame(data=model.feature_importances_, index=model.feature_names_in_, columns=['importance'])
+#df_fi.sort_values('importance').plot(kind='barh', title='Feature Importance')
+#plt.show()
 
-print('RMSE: ', str(rmse).replace('.', ','))
-print('MAE: ', str(mae).replace('.', ','))
+#ax = Y_test.plot(figsize=(15, 5))
+#forecast.plot(ax=ax, style='.')
+#ax.set_title('Prediction')
+#plt.show()
+
+#rmse = sqrt(mean_squared_error(Y_test, forecast))
+#mae = mean_absolute_error(Y_test, forecast)
+
+#print('RMSE: ', str(rmse).replace('.', ','))
+#print('MAE: ', str(mae).replace('.', ','))
 
 #End Evaluation
 

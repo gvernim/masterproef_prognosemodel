@@ -36,9 +36,14 @@ def show_missing_data_column(df, col_number):
 
 
 #Show possible extreme value points
-def find_missing_data_points(df):
-    neg_modifier = 50
-    pos_modifier = 100
+def find_missing_data_points(df, column_number):
+    #For production
+    if column_number == 0:
+        neg_modifier = 50
+        pos_modifier = 100
+    elif column_number == 1:
+        neg_modifier = 0.5
+        pos_modifier = 4.25
     df_dates = pd.DataFrame(df, index=df.index)
 
     col_pos_mean = df_dates[df_dates>=0].mean()
@@ -78,7 +83,7 @@ def find_outliers_IQR(df):
    return outliers
 
 #Show possible missing periods of data per column
-def find_missing_data_periods(df, rolling_records=68):
+def find_missing_data_periods(df, rolling_records=32):
     df_dates = pd.DataFrame(df, index=df.index)
 
     #Shifts one to the left and compares but doesnt work properly
@@ -131,7 +136,7 @@ def find_missing_data_periods(df, rolling_records=68):
     #df_dates['bad data'] = df_dates[df_dates.columns[0]]
     #df_dates.loc[df_dates['broken_record']==False, 'bad data'] = 0
     #sns.set_theme()
-    #sns.lineplot(df_dates.loc[:,0], color="blue")
+    #sns.lineplot(df_dates.iloc[:,0], color="blue") #Not this one?
     #df_dates.plot(y=[df_dates.columns[0], 'bad data'], color={df_dates.columns[0]: 'b','bad data': 'red'})
 
     #plt.show()
@@ -159,7 +164,8 @@ def find_largest_period_without_nan(df):
 
 
 #Replace the broken records
-def replace_broken_records_custom(df):
+def replace_broken_records_custom(df, column_number):
+    df = pd.DataFrame(df)
     result_day = df.groupby(df.index.hour).mean()
     result_week = df.groupby(df.index.weekday).mean()
     result_month = df.groupby(df.index.month).mean()
@@ -168,19 +174,19 @@ def replace_broken_records_custom(df):
     mean_days = result_week.mean()
     mean_months = result_month.mean()
 
-    imputed_indices = df[df.isna()].index
+    imputed_indices = df.loc[pd.isna(df[df.columns[0]])].index
 
     predicted_values = pd.DataFrame({'hour': imputed_indices.hour, 'weekday': imputed_indices.weekday, 'month': imputed_indices.month} , index=imputed_indices)
 
     for index, row in predicted_values.iterrows():
         prediction = result_day.iloc[row.iloc[0]]*(result_week.iloc[row.iloc[1]]/mean_days)*(result_month.iloc[row.iloc[2]-1]/mean_months)
         df.loc[index] = prediction
-        predicted_values.loc[index, 'pred_value'] = prediction
+        predicted_values.loc[index, 'pred_value'] = prediction.iloc[0]
 
-    df.plot()
-    plt.scatter(imputed_indices, predicted_values['pred_value'], color='red', label='Custom Imputation')
+    #df[df.columns[0]].plot()
+    #plt.scatter(imputed_indices, predicted_values['pred_value'], color='red', label='Custom Imputation')
 
-    plt.show()
+    #plt.show()
 
     return df
 
@@ -303,7 +309,7 @@ def replace_broken_records_seasonal_decompose(df, col_number):
     imputed_indices = df[df[df.columns[col_number]].isna()].index
 
     # Apply STL decompostion
-    stl = seasonal_decompose(df[df.columns[col_number]].interpolate(), period=96, model="multiplicative")
+    stl = seasonal_decompose(df[df.columns[col_number]].interpolate(), period=24, model="additive")
     res = stl.fit()
     res.plot()
     plt.show()
@@ -339,7 +345,7 @@ def replace_broken_records_seasonal_decompose(df, col_number):
     #STL Decomposition, does not work as required for long periods
 def replace_broken_records_stl(df, col_number):
 
-    seasonal_calc = math.floor(len(df)/96)
+    seasonal_calc = math.floor(len(df)/24)
     if seasonal_calc % 2 == 0:
         seasonal_calc -= 1
 
@@ -355,7 +361,7 @@ def replace_broken_records_stl(df, col_number):
     #df[df.columns[col_number]] = df[df.columns[col_number]].fillna(0)
 
     # Apply STL decompostion
-    stl = STL(df[df.columns[col_number]].interpolate(), period=96, trend=trend_calc, seasonal=seasonal_calc)
+    stl = STL(df[df.columns[col_number]].interpolate(), period=24, trend=trend_calc, seasonal=seasonal_calc)
     res = stl.fit()
     res.plot()
     plt.show()

@@ -4,16 +4,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import datetime
-from math import sqrt, log10
+from math import sqrt, floor
 from pandas.tseries.offsets import DateOffset
 
 #Import statistical analysis
-from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error
+from sklearn.model_selection import TimeSeriesSplit
 
-#Import prophet model
-from prophet import Prophet
-from prophet.plot import plot_plotly, plot_components_plotly, add_changepoints_to_plot
-import itertools
+#Import arima model
+from pmdarima.arima import auto_arima, ARIMA, StepwiseContext
+from statsmodels.tsa.stattools import adfuller
+#from statsmodels.tsa.arima.model import ARIMA
 
 #Import custom classes
 import load_data
@@ -21,12 +22,12 @@ import visualize_data
 import prepare_data
 import analyze_data
 import model_data_preparation
-import model_data_prophet
+import model_arima_data
 
 #User variables
 filename_1 = 'Merelbeke Energie.csv'
 filename_2 = 'Merelbeke Energie_2.json'
-column_number = 0
+column_number = 1
 start_date_data = pd.to_datetime('2022-01-01 00:00:00+01:00')
 end_date_data = pd.to_datetime('2023-12-31 23:45:00+01:00')
 
@@ -63,7 +64,7 @@ df_2024.columns = df.columns
 
 df_weer = load_data.load_extra_data_in_df()
 
-df_weer_test_set_1_day = df_weer.loc[start_test_set:end_test_set_1_day]
+df_weer_test_set_2_weeks = df_weer.loc[start_test_set:end_test_set_1_day]
 df_weer_test_set_2_weeks = df_weer.loc[start_test_set:end_test_set_2_weeks]
 df_weer_test_set_month = df_weer.loc[start_test_set:end_test_set_month]
 df_weer_test_set_2_month = df_weer.loc[start_test_set:end_test_set_2_month]
@@ -101,11 +102,11 @@ del df_2024['SmartCharging / meter-001 / ActiveEnergyImportTarrif2(Consumptie)']
 
 #visualize_data.visualize_columns(df)
 
-#analyze_data.correlation_between_columns(df, df_weer, 0, 0)    #Very weak
-#analyze_data.correlation_between_columns(df, df_weer, 0, 1)    #Weak negative
-#analyze_data.correlation_between_columns(df, df_weer, 0, 2)    #Very weak
-#analyze_data.correlation_between_columns(df, df_weer, 0, 3)    #Weak negative
-analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 4)     #Very strong correlation
+analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 0)    #Very weak
+analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 1)    #Weak negative
+analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 2)    #Very weak
+analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 3)    #Weak negative
+analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 4)
 
 #visualize_data.visualize_column_period_start_end(df, column_number, start_period, end_period)
 #visualize_data.visualize_column_period_start_length(df, column_number, start_period, length_period)
@@ -119,8 +120,10 @@ analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 4)     #Very s
 #Adapted per column, 
 if column_number==0:
     rolling_records = 32
+elif column_number==1:
+    rolling_records = 20
 else:
-    rolling_records = 68
+    rolling_records = 64
 
 #Find faulty data
 df_dates, df_periods = prepare_data.find_missing_data_periods(df_col, rolling_records)
@@ -131,13 +134,13 @@ df_dates_points = prepare_data.find_missing_data_points(df_col, column_number)
 #Add both broken periods and points together
 df_dates['broken_record'] = df_dates['broken_record'] | df_dates_points['broken_record']
 
-#Convert found faulty data to 
+#Convert found faulty data to
 df_dates_hour = load_data.change_quarterly_index_to_hourly(df_dates)
 df_dates_hour['broken_record'] = np.where(df_dates_hour['broken_record'] >= 1, True, False)
 
 #After check replace with NaN values
-df_col = prepare_data.convert_broken_records_to_nan(df_col, column_number, df_dates, df_periods)
-df_col_hour = prepare_data.convert_broken_records_to_nan(df_col_hour, column_number, df_dates_hour, df_periods)
+df_col = prepare_data.convert_broken_records_to_nan(df_col, 0, df_dates, df_periods)
+df_col_hour = prepare_data.convert_broken_records_to_nan(df_col_hour, 0, df_dates_hour, df_periods)
 
 df_analyze = df_col_hour.loc[start_period:end_period]
 df_features = df_weer.loc[start_period:end_period]
@@ -147,7 +150,7 @@ df_analyze = pd.concat([df_analyze, df_features['windspeed']], axis=1)
 df_analyze = pd.concat([df_analyze, df_features['temp']], axis=1)
 
 #Impute missing data
-df_imputed_hour = prepare_data.replace_broken_records_knn(df_analyze, 0, 1)
+df_imputed_hour = prepare_data.replace_broken_records_custom(df_analyze, 0)
 
 #End Data preparation
 
@@ -155,7 +158,87 @@ df_imputed_hour = prepare_data.replace_broken_records_knn(df_analyze, 0, 1)
 
 #4. Analysis
 
+period_freq = 24 #96 for quarterly
 
+#Decomposition analysis
+seasonal_add, non_seasonal_add, residuals = analyze_data.analyze_decomp_column(df_imputed_hour, period_freq)
+#analyze_data.analyze_decomp_column_period_start_end(df, column_number, start_period, end_period)
+#analyze_data.analyze_decomp_column_period_start_length(df, column_number, start_period, length_period)
+
+seasonal_add = pd.DataFrame(seasonal_add)
+non_seasonal_add = pd.DataFrame(non_seasonal_add)
+residuals = pd.DataFrame(residuals)
+
+analyze_data.correlation_between_columns(seasonal_add, df_weer, 0, 0)
+analyze_data.correlation_between_columns(non_seasonal_add, df_weer, 0, 0)
+analyze_data.correlation_between_columns(residuals, df_weer, 0, 0)
+
+analyze_data.correlation_between_columns(seasonal_add, df_weer, 0, 1)
+analyze_data.correlation_between_columns(non_seasonal_add, df_weer, 0, 1)
+analyze_data.correlation_between_columns(residuals, df_weer, 0, 1)
+
+analyze_data.correlation_between_columns(seasonal_add, df_weer, 0, 2)
+analyze_data.correlation_between_columns(non_seasonal_add, df_weer, 0, 2)
+analyze_data.correlation_between_columns(residuals, df_weer, 0, 2)
+
+analyze_data.correlation_between_columns(seasonal_add, df_weer, 0, 3)
+analyze_data.correlation_between_columns(non_seasonal_add, df_weer, 0, 3)
+analyze_data.correlation_between_columns(residuals, df_weer, 0, 3)
+
+analyze_data.correlation_between_columns(seasonal_add, df_weer, 0, 4)
+analyze_data.correlation_between_columns(non_seasonal_add, df_weer, 0, 4)
+analyze_data.correlation_between_columns(residuals, df_weer, 0, 4)
+
+#Stationary analysis
+    #Determine d-parameter => Which lag is largest (If unclear check differencing ACF)
+    #Determine q-parameter => Number of Lags outside of blue zone
+
+    #Full data analysis
+analyze_data.show_plot_acf(df_imputed_hour, 0)
+analyze_data.show_plot_acf_1_diff(df_imputed_hour, 0)
+analyze_data.show_plot_acf_2_diff(df_imputed_hour, 0)
+
+    #Seasonal Component analysis
+analyze_data.show_plot_acf(seasonal_add, 0)
+analyze_data.show_plot_acf_1_diff(seasonal_add, 0)
+analyze_data.show_plot_acf_2_diff(seasonal_add, 0)
+
+    #Non seasonal Component analysis
+analyze_data.show_plot_acf(non_seasonal_add, 0)
+analyze_data.show_plot_acf_1_diff(non_seasonal_add, 0)
+analyze_data.show_plot_acf_2_diff(non_seasonal_add, 0)
+
+    #Double-check d-parameter (For ADF: Under 0.05)
+    #Full data analysis
+print('Full data tests:')
+analyze_data.adfuller_test(df_imputed_hour, 0)
+analyze_data.kpss_test(df_imputed_hour, 0)
+
+    #Seasonal Component analysis
+print('Seasonal tests:')
+analyze_data.adfuller_test(seasonal_add, 0)
+analyze_data.kpss_test(seasonal_add, 0)
+
+    #Non seasonal Component analysis
+print('Non-seasonal tests:')
+analyze_data.adfuller_test(non_seasonal_add, 0)
+analyze_data.kpss_test(non_seasonal_add, 0)
+
+    #Determine p-parameter => Which lag is largest (If unclear check next differential PACF)
+    #Full data analysis
+analyze_data.show_plot_pacf(df_imputed_hour, 0)
+analyze_data.show_plot_pacf_1_diff(df_imputed_hour, 0)
+analyze_data.show_plot_pacf_2_diff(df_imputed_hour, 0)
+
+    #Seasonal Component analysis
+analyze_data.show_plot_pacf(seasonal_add, 0)
+analyze_data.show_plot_pacf_1_diff(seasonal_add, 0)
+analyze_data.show_plot_pacf_2_diff(seasonal_add, 0)
+
+    #Non seasonal Component analysis
+analyze_data.show_plot_pacf(non_seasonal_add, 0)
+analyze_data.show_plot_pacf_1_diff(non_seasonal_add, 0)
+analyze_data.show_plot_pacf_2_diff(non_seasonal_add, 0)
 
 #End analysis
 
@@ -163,93 +246,10 @@ df_imputed_hour = prepare_data.replace_broken_records_knn(df_analyze, 0, 1)
 #5. Model data preparation
 
 #Test samples
-
-#Lag features not possible in this model
-#lag_features = (1, 2, 3)
-#df_imputed_hour = model_data_prophet.create_lag_features(df, lag_features)
-
-df_test_set_1_day = df_imputed_hour.loc[start_test_set:end_test_set_1_day]
 df_test_set_2_weeks = df_imputed_hour.loc[start_test_set:end_test_set_2_weeks]
 df_test_set_month = df_imputed_hour.loc[start_test_set:end_test_set_month]
 df_test_set_2_month = df_imputed_hour.loc[start_test_set:end_test_set_2_month]
 
 df_train, df_test = model_data_preparation.split_data(df_imputed_hour, start_test_set)
 
-#Convert to correct format
-df_train = model_data_prophet.convert_datetime_index_to_prophet_df(df_train)
-
-#Set required testset here
-number_of_predictions = 14*24
-df_test_set = model_data_prophet.convert_datetime_index_to_prophet_df(df_test_set_2_weeks)
-
 #End Model data preparation
-
-#6. Prophet Model
-
-#Logarithmic transformation
-df_train['y'] = np.log(1 + df_train['y'])
-df_train['solarradiation'] = np.log(1 + df_train['solarradiation'])
-df_train['cloudcover'] = np.log(1 + df_train['cloudcover'])
-df_train['windspeed'] = np.log(1 + df_train['windspeed'])
-df_train['temp'] = np.log(1 + df_train['temp'])
-
-df_test_set['solarradiation'] = np.log(1 + df_test_set['solarradiation'])
-df_test_set['cloudcover'] = np.log(1 + df_test_set['cloudcover'])
-df_test_set['windspeed'] = np.log(1 + df_test_set['windspeed'])
-df_test_set['temp'] = np.log(1 + df_test_set['temp'])
-
-model = Prophet(growth='linear', yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=True, seasonality_mode='additive', seasonality_prior_scale=0.01, changepoint_prior_scale = 0.5)
-#model.add_seasonality(name='daily', period=1, fourier_order=18).add_seasonality(name='yearly', period=365, fourier_order=6) #Set all seasonalities to false
-
-#Adding feature/regressor
-model.add_regressor('solarradiation')
-#model.add_regressor('cloudcover')
-#model.add_regressor('windspeed')
-#model.add_regressor('temp')
-
-#model.add_regressor('lag1')
-#model.add_regressor('lag2')
-#model.add_regressor('lag3')
-
-model.fit(df_train)
-
-future = model.make_future_dataframe(periods=number_of_predictions, freq='H', include_history=False)
-
-future = future.merge(df_test_set, how='left', on=['ds'])
-del future['y']
-
-forecast = model.predict(future)
-
-#Reverse transformation
-model.history['y'] = np.exp(model.history['y']) - 1
-for col in ['yhat', 'yhat_lower', 'yhat_upper']:#, 'solarradiation', 'cloudcover', 'windspeed', 'temp']:
-    forecast[col] = np.exp(forecast[col]) - 1
-
-fig1 = model.plot(forecast)
-a = add_changepoints_to_plot(fig1.gca(), model, forecast)
-plt.plot('ds', 'y', data=df_test_set, color='red')
-plt.show()
-
-fig2 = model.plot_components(forecast)
-plt.show()
-
-fig3 = model.plot(forecast)
-plt.plot('ds', 'y', data=df_test_set, color='red')
-plt.show()
-
-#End Prophet Model
-
-#7. Evaluation
-
-#.iloc[-len(df_test):]  Needed if include_history set to true
-print(df_test_set[df_test_set.columns[0]])
-print(forecast['yhat'])
-rmse = sqrt(mean_squared_error(df_test_set['y'], forecast['yhat']))#.iloc[-len(df_test_set):]))
-mae = mean_absolute_error(df_test_set['y'], forecast['yhat'])#.iloc[-len(df_test_set):])
-
-print('RMSE: ', str(rmse).replace('.', ','))
-print('MAE: ', str(mae).replace('.', ','))
-
-#End Evaluation
-
-#End Main

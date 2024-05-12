@@ -13,10 +13,3 @@ def create_features(df):
     df['quarter'] = df.index.quarter
     df['dayofyear'] = df.index.dayofyear
     return df
-
-def create_lag_features(df, lags):
-    df = df.copy()
-    for i in lags:
-        df['lag' + str(i)] = df[df.columns[0]].shift(i)
-        df['lag' + str(i)] = df['lag' + str(i)].fillna(0)
-    return df

@@ -13,7 +13,6 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 #Import prophet model
 from prophet import Prophet
 from prophet.plot import plot_plotly, plot_components_plotly, add_changepoints_to_plot
-import itertools
 
 #Import custom classes
 import load_data
@@ -26,7 +25,7 @@ import model_data_prophet
 #User variables
 filename_1 = 'Merelbeke Energie.csv'
 filename_2 = 'Merelbeke Energie_2.json'
-column_number = 0
+column_number = 1
 start_date_data = pd.to_datetime('2022-01-01 00:00:00+01:00')
 end_date_data = pd.to_datetime('2023-12-31 23:45:00+01:00')
 
@@ -72,9 +71,9 @@ df_weer_test_set_2_month = df_weer.loc[start_test_set:end_test_set_2_month]
 df_col = pd.DataFrame(df_2024[df_2024.columns[column_number]], index=df_2024.index)
 df_col_hour = load_data.change_quarterly_index_to_hourly(df_col)
 
-#df_holidays = load_data.give_bank_holidays(start_date_data, end_date_data, True)
-#df_holidays = load_data.give_bank_holidays_quarterly(start_date_data, end_date_data)
-#df_holidays_hourly = load_data.give_bank_holidays_hourly(start_date_data, end_date_data)
+df_holidays = load_data.give_bank_holidays(start_date_data, end_date_data, True)
+df_holidays = load_data.give_bank_holidays_quarterly(start_date_data, end_date_data)
+df_holidays_hourly = load_data.give_bank_holidays_hourly(start_date_data, end_date_data)
 
 #Data headers with number in brackets after format
     #PV Productie[0] ; NA Aankomst / ActiveEnergyConsumption(Consumptie)[1] ; NA Aankomst / ActiveEnergyProduction(Productie)[2] ;
@@ -101,11 +100,11 @@ del df_2024['SmartCharging / meter-001 / ActiveEnergyImportTarrif2(Consumptie)']
 
 #visualize_data.visualize_columns(df)
 
-#analyze_data.correlation_between_columns(df, df_weer, 0, 0)    #Very weak
-#analyze_data.correlation_between_columns(df, df_weer, 0, 1)    #Weak negative
-#analyze_data.correlation_between_columns(df, df_weer, 0, 2)    #Very weak
-#analyze_data.correlation_between_columns(df, df_weer, 0, 3)    #Weak negative
-analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 4)     #Very strong correlation
+analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 0)    #Very weak
+analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 1)    #Weak negative
+analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 2)    #Very weak
+analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 3)    #Weak negative
+analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 4)
 
 #visualize_data.visualize_column_period_start_end(df, column_number, start_period, end_period)
 #visualize_data.visualize_column_period_start_length(df, column_number, start_period, length_period)
@@ -119,8 +118,10 @@ analyze_data.correlation_between_columns(df_col_hour, df_weer, 0, 4)     #Very s
 #Adapted per column, 
 if column_number==0:
     rolling_records = 32
+elif column_number==1:
+    rolling_records = 20
 else:
-    rolling_records = 68
+    rolling_records = 64
 
 #Find faulty data
 df_dates, df_periods = prepare_data.find_missing_data_periods(df_col, rolling_records)
@@ -131,27 +132,25 @@ df_dates_points = prepare_data.find_missing_data_points(df_col, column_number)
 #Add both broken periods and points together
 df_dates['broken_record'] = df_dates['broken_record'] | df_dates_points['broken_record']
 
-#Convert found faulty data to 
+#Convert found faulty data to
 df_dates_hour = load_data.change_quarterly_index_to_hourly(df_dates)
 df_dates_hour['broken_record'] = np.where(df_dates_hour['broken_record'] >= 1, True, False)
 
 #After check replace with NaN values
-df_col = prepare_data.convert_broken_records_to_nan(df_col, column_number, df_dates, df_periods)
-df_col_hour = prepare_data.convert_broken_records_to_nan(df_col_hour, column_number, df_dates_hour, df_periods)
+df_col = prepare_data.convert_broken_records_to_nan(df_col, 0, df_dates, df_periods)
+df_col_hour = prepare_data.convert_broken_records_to_nan(df_col_hour, 0, df_dates_hour, df_periods)
 
 df_analyze = df_col_hour.loc[start_period:end_period]
 df_features = df_weer.loc[start_period:end_period]
-df_analyze = pd.concat([df_analyze, df_features['solarradiation']], axis=1)
+#df_analyze = pd.concat([df_analyze, df_features['solarradiation']], axis=1)
 df_analyze = pd.concat([df_analyze, df_features['cloudcover']], axis=1)
 df_analyze = pd.concat([df_analyze, df_features['windspeed']], axis=1)
 df_analyze = pd.concat([df_analyze, df_features['temp']], axis=1)
 
 #Impute missing data
-df_imputed_hour = prepare_data.replace_broken_records_knn(df_analyze, 0, 1)
+df_imputed_hour = prepare_data.replace_broken_records_custom(df_analyze, 0)
 
 #End Data preparation
-
-
 
 #4. Analysis
 
@@ -159,10 +158,11 @@ df_imputed_hour = prepare_data.replace_broken_records_knn(df_analyze, 0, 1)
 
 #End analysis
 
-
 #5. Model data preparation
 
 #Test samples
+df_holidays = df_holidays['Date'].dt.date.drop_duplicates().reset_index(drop=True)
+df_holidays = pd.DataFrame({'holiday': 'bel_days_off', 'ds': df_holidays})
 
 #Lag features not possible in this model
 #lag_features = (1, 2, 3)
@@ -186,26 +186,19 @@ df_test_set = model_data_prophet.convert_datetime_index_to_prophet_df(df_test_se
 
 #6. Prophet Model
 
-#Logarithmic transformation
-df_train['y'] = np.log(1 + df_train['y'])
-df_train['solarradiation'] = np.log(1 + df_train['solarradiation'])
-df_train['cloudcover'] = np.log(1 + df_train['cloudcover'])
-df_train['windspeed'] = np.log(1 + df_train['windspeed'])
-df_train['temp'] = np.log(1 + df_train['temp'])
 
-df_test_set['solarradiation'] = np.log(1 + df_test_set['solarradiation'])
-df_test_set['cloudcover'] = np.log(1 + df_test_set['cloudcover'])
-df_test_set['windspeed'] = np.log(1 + df_test_set['windspeed'])
-df_test_set['temp'] = np.log(1 + df_test_set['temp'])
-
-model = Prophet(growth='linear', yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=True, seasonality_mode='additive', seasonality_prior_scale=0.01, changepoint_prior_scale = 0.5)
+model = Prophet(growth='linear', n_changepoints=25,
+                yearly_seasonality=True, weekly_seasonality=True, daily_seasonality=True,
+                seasonality_mode='additive', seasonality_prior_scale=10, changepoint_prior_scale = 0.05
+                #holidays=df_holidays
+                )
 #model.add_seasonality(name='daily', period=1, fourier_order=18).add_seasonality(name='yearly', period=365, fourier_order=6) #Set all seasonalities to false
 
 #Adding feature/regressor
-model.add_regressor('solarradiation')
-#model.add_regressor('cloudcover')
-#model.add_regressor('windspeed')
-#model.add_regressor('temp')
+#model.add_regressor('solarradiation')
+model.add_regressor('cloudcover')
+model.add_regressor('windspeed')
+model.add_regressor('temp')
 
 #model.add_regressor('lag1')
 #model.add_regressor('lag2')
@@ -221,9 +214,9 @@ del future['y']
 forecast = model.predict(future)
 
 #Reverse transformation
-model.history['y'] = np.exp(model.history['y']) - 1
-for col in ['yhat', 'yhat_lower', 'yhat_upper']:#, 'solarradiation', 'cloudcover', 'windspeed', 'temp']:
-    forecast[col] = np.exp(forecast[col]) - 1
+#model.history['y'] = np.exp(model.history['y']) - 1
+#for col in ['yhat', 'yhat_lower', 'yhat_upper']:#, 'solarradiation', 'cloudcover', 'windspeed', 'temp']:
+#    forecast[col] = np.exp(forecast[col]) - 1
 
 fig1 = model.plot(forecast)
 a = add_changepoints_to_plot(fig1.gca(), model, forecast)

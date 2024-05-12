@@ -36,6 +36,7 @@ start_period = pd.to_datetime('2023-01-01 00:00:00+01:00')
 end_period = pd.to_datetime('2024-02-29 23:00:00+01:00')
 
 start_test_set = pd.to_datetime('2024-01-01 00:00:00+01:00')
+end_test_set_1_day = pd.to_datetime('2024-01-01 23:00:00+01:00')
 end_test_set_2_weeks = pd.to_datetime('2024-01-14 23:00:00+01:00')
 end_test_set_month = pd.to_datetime('2024-01-31 23:00:00+01:00')
 end_test_set_2_month = pd.to_datetime('2023-12-31 23:00:00+01:00')
@@ -60,6 +61,7 @@ df_2024.columns = df.columns
 
 df_weer = load_data.load_extra_data_in_df()
 
+df_weer_test_set_2_weeks = df_weer.loc[start_test_set:end_test_set_1_day]
 df_weer_test_set_2_weeks = df_weer.loc[start_test_set:end_test_set_2_weeks]
 df_weer_test_set_month = df_weer.loc[start_test_set:end_test_set_month]
 df_weer_test_set_2_month = df_weer.loc[start_test_set:end_test_set_2_month]
@@ -120,7 +122,7 @@ else:
 
 #Find faulty data
 df_dates, df_periods = prepare_data.find_missing_data_periods(df_col, rolling_records)
-df_dates_points = prepare_data.find_missing_data_points(df_col)
+df_dates_points = prepare_data.find_missing_data_points(df_col, column_number)
 
 #print('The following periods contain possible faulty data: \n', df_periods)
 
@@ -135,9 +137,13 @@ df_dates_hour['broken_record'] = np.where(df_dates_hour['broken_record'] >= 1, T
 df_col = prepare_data.convert_broken_records_to_nan(df_col, column_number, df_dates, df_periods)
 df_col_hour = prepare_data.convert_broken_records_to_nan(df_col_hour, column_number, df_dates_hour, df_periods)
 
+#Add weatherfeatures here
 df_analyze = df_col_hour.loc[start_period:end_period]
 df_features = df_weer.loc[start_period:end_period]
 df_analyze = pd.concat([df_analyze, df_features['solarradiation']], axis=1)
+df_analyze = pd.concat([df_analyze, df_features['cloudcover']], axis=1)
+df_analyze = pd.concat([df_analyze, df_features['windspeed']], axis=1)
+df_analyze = pd.concat([df_analyze, df_features['temp']], axis=1)
 
 #Impute missing data
 df_imputed_hour = prepare_data.replace_broken_records_knn(df_analyze, 0, 1)
@@ -156,34 +162,61 @@ df_imputed_hour = prepare_data.replace_broken_records_knn(df_analyze, 0, 1)
 #5. Model data preparation
 
 #Test samples
-del df_imputed_hour['solarradiation']
 
+#Features aanpassen
+#del df_imputed_hour['solarradiation']
+del df_imputed_hour['cloudcover']
+del df_imputed_hour['windspeed']
+del df_imputed_hour['temp']
+lag_features = (1, 2, 3)
+
+df_imputed_hour = model_data_xgb.create_features(df_imputed_hour)
+df_imputed_hour = model_data_xgb.create_lag_features(df_imputed_hour, lag_features)
+
+df_test_set_1_day = df_imputed_hour.loc[start_test_set:end_test_set_1_day]
 df_test_set_2_weeks = df_imputed_hour.loc[start_test_set:end_test_set_2_weeks]
 df_test_set_month = df_imputed_hour.loc[start_test_set:end_test_set_month]
 df_test_set_2_month = df_imputed_hour.loc[start_test_set:end_test_set_2_month]
 
 df_train, df_test = model_data_preparation.split_data(df_imputed_hour, start_test_set)
 
-df_train = model_data_xgb.create_features(df_train)
-df_test_set_2_weeks = model_data_xgb.create_features(df_test_set_2_weeks)
+#Set required test set here
+df_test_set = df_test_set_2_weeks
+
+print(df_train)
 
 X_train = df_train[df_train.columns[1:]]
 Y_train = df_train[df_train.columns[0]]
 
-X_test = df_test_set_2_weeks[df_test_set_2_weeks.columns[1:]]
-Y_test = df_test_set_2_weeks[df_test_set_2_weeks.columns[0]]
+X_test = df_test_set[df_test_set.columns[1:]]
+Y_test = df_test_set[df_test_set.columns[0]]
 
 #End Model data preparation
 
 #6. XGB Model
 
-model = xgb.XGBRegressor(n_estimators=1000, early_stopping_rounds=50)
+model = xgb.XGBRegressor(learning_rate=0.01, max_depth=3,n_estimators=250, subsample=0.5, early_stopping_rounds=50)
 model.fit(X_train, Y_train, eval_set=[(X_train, Y_train)],verbose=True)
 
-forecast = model.predict(X_test)
-forecast = pd.DataFrame(data=forecast, index=X_test.index)
+list_forecast = []
+
+for i in range(len(X_test)):
+    if i>= lag_features[0]:
+        X_test.lag1.iloc[i] = forecast
+    if i>= lag_features[1]:
+        X_test.lag2.iloc[i] = X_test.lag1.iloc[i-1]
+    if i>= lag_features[2]:
+        X_test.lag3.iloc[i] = X_test.lag2.iloc[i-1]
+
+    forecast = model.predict(X_test.iloc[i].to_frame().T)
+    list_forecast.append(forecast)
+
+
+forecast = pd.DataFrame(data=list_forecast, index=X_test.index)
 
 #End XGB Model
+
+
 
 #7. Evaluation
 
@@ -198,9 +231,11 @@ plt.show()
 
 rmse = sqrt(mean_squared_error(Y_test, forecast))
 mae = mean_absolute_error(Y_test, forecast)
+mape = mean_absolute_percentage_error(Y_test, forecast)
 
 print('RMSE: ', str(rmse).replace('.', ','))
 print('MAE: ', str(mae).replace('.', ','))
+print('MAPE: ', str(mape).replace('.', ','))
 
 #End Evaluation
 
