@@ -27,7 +27,7 @@ import model_arima_data
 #User variables
 filename_1 = 'Merelbeke Energie.csv'
 filename_2 = 'Merelbeke Energie_2.json'
-column_number = 1
+column_number = 0
 start_date_data = pd.to_datetime('2022-01-01 00:00:00+01:00')
 end_date_data = pd.to_datetime('2023-12-31 23:45:00+01:00')
 

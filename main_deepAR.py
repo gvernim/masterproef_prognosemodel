@@ -133,7 +133,7 @@ else:
 
 #Find faulty data
 df_dates, df_periods = prepare_data.find_missing_data_periods(df_col, rolling_records)
-df_dates_points = prepare_data.find_missing_data_points(df_col)
+df_dates_points = prepare_data.find_missing_data_points(df_col, column_number)
 
 #print('The following periods contain possible faulty data: \n', df_periods)
 
@@ -151,6 +151,10 @@ df_col_hour = prepare_data.convert_broken_records_to_nan(df_col_hour, column_num
 df_analyze = df_col_hour.loc[start_period:end_period]
 df_features = df_weer.loc[start_period:end_period]
 df_analyze = pd.concat([df_analyze, df_features['solarradiation']], axis=1)
+df_analyze = pd.concat([df_analyze, df_features['cloudcover']], axis=1)
+df_analyze = pd.concat([df_analyze, df_features['windspeed']], axis=1)
+df_analyze = pd.concat([df_analyze, df_features['humidity']], axis=1)
+df_analyze = pd.concat([df_analyze, df_features['temp']], axis=1)
 
 #Impute missing data
 df_imputed_hour = prepare_data.replace_broken_records_knn(df_analyze, 0, 1)
@@ -179,11 +183,11 @@ df_test_set_2_month = df_imputed_hour.loc[start_test_set:end_test_set_2_month]
 df_train, df_test = model_data_preparation.split_data(df_imputed_hour, start_test_set)
 
 #Set length here
-context_length=24*31
-prediction_length=24*31
+context_length=24*28
+prediction_length=24*14
 
 #Set required test set here
-df_test_set = pd.concat([df_train.iloc[-context_length:], df_test_set_month])
+df_test_set = pd.concat([df_train.iloc[-context_length:], df_test_set_2_weeks])
 
 df_train_T = df_train.reset_index()
 df_train_T = df_train_T.T
@@ -193,7 +197,6 @@ df_test_T = df_test_T.T
 
 target = df_train_T.iloc[1,:]
 feat_dynamic = df_train_T.iloc[2:,:]
-print(feat_dynamic)
 
 train_ds = ListDataset(
     [

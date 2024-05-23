@@ -127,7 +127,7 @@ else:
 
 #Find faulty data
 df_dates, df_periods = prepare_data.find_missing_data_periods(df_col, rolling_records)
-df_dates_points = prepare_data.find_missing_data_points(df_col)
+df_dates_points = prepare_data.find_missing_data_points(df_col, column_number)
 
 print('The following periods contain possible faulty data: \n', df_periods)
 
@@ -151,6 +151,10 @@ df_col_hour = prepare_data.convert_broken_records_to_nan(df_col_hour, column_num
 df_analyze = df_col_hour.loc[start_period:end_period]
 df_features = df_weer.loc[start_period:end_period]
 df_analyze = pd.concat([df_analyze, df_features['solarradiation']], axis=1)
+df_analyze = pd.concat([df_analyze, df_features['cloudcover']], axis=1)
+df_analyze = pd.concat([df_analyze, df_features['windspeed']], axis=1)
+df_analyze = pd.concat([df_analyze, df_features['humidity']], axis=1)
+df_analyze = pd.concat([df_analyze, df_features['temp']], axis=1)
 
 #Show percentage of missing data
 prepare_data.show_missing_data_column(df_analyze, column_number)
@@ -328,10 +332,21 @@ period_freq = 24 #96 for quarterly
 
 #print(df.describe())
 
+#sns.scatterplot(data=df_imputed_hour, x="3VA2 Breaker PV / ActiveEnergyProduction(Productie)", y="solarradiation")
+sns.regplot(data=df_imputed_hour, x="3VA2 Breaker PV / ActiveEnergyProduction(Productie)", y="solarradiation", marker="x", line_kws=dict(color="r"))
+
+plt.show()
+
 #End analysis
 
 
 #5. Model data preparation
+#Features verwijderen of toevoegen
+#del df_imputed_hour['solarradiation']
+#del df_imputed_hour['cloudcover']
+del df_imputed_hour['windspeed']
+del df_imputed_hour['humidity'] #Not this one
+del df_imputed_hour['temp']
 
 #Test samples
 df_test_set_1_day = df_imputed_hour.loc[start_test_set:end_test_set_1_day]
@@ -344,50 +359,72 @@ df_train, df_test = model_data_preparation.split_data(df_imputed_hour, start_tes
 #Set test set here
 df_test_set = df_test_set_2_weeks
 
+#Change start date df_train
+print(len(df_train))
+start_date_train = pd.to_datetime('2023-02-01 00:00:00+01:00')
+#6 maanden: pd.to_datetime('2023-07-01 00:00:00+01:00')
+#4 maanden: pd.to_datetime('2023-09-01 00:00:00+01:00')
+#3 maanden: pd.to_datetime('2023-10-01 00:00:00+01:00')
+#2 maanden: pd.to_datetime('2023-11-01 00:00:00+01:00')
+#1 maand: pd.to_datetime('2023-12-01 00:00:00+01:00')
+#2 weken: pd.to_datetime('2023-12-18 00:00:00+01:00')
+#1 week: pd.to_datetime('2023-12-25 00:00:00+01:00')
+df_train = df_train[start_date_train:] #df_train.columns[0],
+print(len(df_train))
+
 #End Model data preparation
 
 
 
 #6. ARIMA Model
 
-training_period = datetime.timedelta(days=31)
-start_train_date_1 = pd.to_datetime('2023-06-01 00:00:00+01:00')
-split_train_date_1 = start_train_date_1 + training_period
-
-df_train_1, df_validation_1 = model_arima_data.split_data_hour_2_weeks(df_train, start_train_date_1, split_train_date_1)
-
-#print('Length of validation:', len(df_validation_1))
-
-#Function to determine parameters
-#model = auto_arima(train, m=24, seasonal=True, stepwise=True)
-
+#Auto arima results
 #Standard ARIMA Model
-order=(4,0,2)   #Full training and half
-sorder=(1,0,0)  #Full training
-seasonal_sorder=(2,0,0,24)   #Full training
-#model_fit, df_predictions_1 = model_arima_data.execute_arima(df_train[df_train.columns[0]], df_test_set_2_weeks[df_test_set_2_weeks.columns[0]], order, seasonal_order)
+#order=(3,0,2)   #Full training and half
+#sorder=(1,0,0)  #Full training
+#seasonal_sorder=(2,0,0,24)   #Full training
 
-#arima_model = ARIMA(order=order)
-#arima_model = arima_model.fit(df_train[df_train.columns[0],start_train_date_1:])
-#sarima_model = ARIMA(order=sorder, seasonal_order=seasonal_sorder)
-#sarima_model = sarima_model.fit(df_train[df_train.columns[0], start_train_date_1])
+#Forced d=1
+order=(1,1,0)
+sorder=(4,1,0)
+seasonal_sorder=(1,0,0,24)
+
+#Forced d=2
+#order=(0,2,1)
+#sorder=(1,2,0)
+#seasonal_sorder=(4,0,0,24)
+
+#Forced d=1 and D=1
+#order=(3,1,2)
+#sorder=(1,1,0)
+#seasonal_sorder=(3,1,0,24)
+
+#Forced d=2 and D=1
+#order=(3,1,2)
+#sorder=(0,1,1)
+#seasonal_sorder=(2,0,0,24)
+
+arima_model = ARIMA(order=order)
+arima_model = arima_model.fit(df_train[df_train.columns[0]], X=df_train[df_train.columns[1:]])
+print('1')
+sarima_model = ARIMA(order=sorder, seasonal_order=seasonal_sorder)
+sarima_model = sarima_model.fit(df_train[df_train.columns[0]], X=df_train[df_train.columns[1:]])
+print('1')
 
 #Rolling Forecast ARIMA model
 #1,1,4 AIC=       1,1,5: AIC=     1,2,3: AIC=
 #model_fit, predictions = model_arima_data.execute_rolling_arima(train, test, order)
 
-df_train = df_train[start_train_date_1:]
-
-with StepwiseContext(max_steps=100):
-    with StepwiseContext(max_dur=500):
-        arima_model = auto_arima(df_train[df_train.columns[0]], test='adf', max_p=None, d=None, max_q=None, seasonal=False, information_criterion='aic',error_action='warn', trace=True, suppress_warnings=True, stepwise=True, random_state=20, n_fits=100)
-        sarima_model = auto_arima(df_train[df_train.columns[0]], test='adf', max_p=None, d=None, max_q=None, max_P=None, D=None, max_Q=None, m=24, seasonal=True, error_action='warn', trace=True, suppress_warnings=True, stepwise=True, random_state=20, n_fits=100)
+#with StepwiseContext(max_steps=100):
+#    with StepwiseContext(max_dur=500):
+#        arima_model = auto_arima(df_train[df_train.columns[0]], test='adf', max_p=None, d=1, max_q=None, seasonal=False, information_criterion='aic',error_action='warn', trace=True, suppress_warnings=True, stepwise=True, random_state=20, n_fits=100)
+#        sarima_model = auto_arima(df_train[df_train.columns[0]], test='adf', max_p=None, d=1, max_q=None, max_P=None, D=None, max_Q=None, m=24, seasonal=True, error_action='warn', trace=True, suppress_warnings=True, stepwise=True, random_state=20, n_fits=100)
 
 print(arima_model.summary())
 print(sarima_model.summary())
 
-df_predictions_1 = arima_model.predict(n_periods=len(df_test_set[df_test_set.columns[0]]))
-df_predictions_2 = sarima_model.predict(n_periods=len(df_test_set[df_test_set.columns[0]]))
+df_predictions_1 = arima_model.predict(n_periods=len(df_test_set[df_test_set.columns[0]]), X=df_test_set[df_test_set.columns[1:]])
+df_predictions_2 = sarima_model.predict(n_periods=len(df_test_set[df_test_set.columns[0]]), X=df_test_set[df_test_set.columns[1:]])
 
 df_predictions_1.index = df_test_set.index
 df_predictions_2.index = df_test_set.index

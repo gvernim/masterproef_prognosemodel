@@ -183,10 +183,10 @@ def replace_broken_records_custom(df, column_number):
         df.loc[index] = prediction
         predicted_values.loc[index, 'pred_value'] = prediction.iloc[0]
 
-    #df[df.columns[0]].plot()
-    #plt.scatter(imputed_indices, predicted_values['pred_value'], color='red', label='Custom Imputation')
+    df[df.columns[0]].plot()
+    plt.scatter(imputed_indices, predicted_values['pred_value'], color='red', label='Custom Imputation')
 
-    #plt.show()
+    plt.show()
 
     return df
 

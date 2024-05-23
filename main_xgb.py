@@ -165,7 +165,7 @@ df_imputed_hour = prepare_data.replace_broken_records_knn(df_analyze, 0, 1)
 
 #Features aanpassen
 #del df_imputed_hour['solarradiation']
-del df_imputed_hour['cloudcover']
+#del df_imputed_hour['cloudcover']
 del df_imputed_hour['windspeed']
 del df_imputed_hour['temp']
 lag_features = (1, 2, 3)
@@ -180,10 +180,20 @@ df_test_set_2_month = df_imputed_hour.loc[start_test_set:end_test_set_2_month]
 
 df_train, df_test = model_data_preparation.split_data(df_imputed_hour, start_test_set)
 
+print(len(df_train))
+start_date_train = pd.to_datetime('2023-02-01 00:00:00+01:00')
+#6 maanden: pd.to_datetime('2023-07-01 00:00:00+01:00')
+#4 maanden: pd.to_datetime('2023-09-01 00:00:00+01:00')
+#3 maanden: pd.to_datetime('2023-10-01 00:00:00+01:00')
+#2 maanden: pd.to_datetime('2023-11-01 00:00:00+01:00')
+#1 maand: pd.to_datetime('2023-12-01 00:00:00+01:00')
+#2 weken: pd.to_datetime('2023-12-18 00:00:00+01:00')
+#1 week: pd.to_datetime('2023-12-25 00:00:00+01:00')
+df_train = df_train[start_date_train:] #df_train.columns[0],
+print(len(df_train))
+
 #Set required test set here
 df_test_set = df_test_set_2_weeks
-
-print(df_train)
 
 X_train = df_train[df_train.columns[1:]]
 Y_train = df_train[df_train.columns[0]]
@@ -195,7 +205,7 @@ Y_test = df_test_set[df_test_set.columns[0]]
 
 #6. XGB Model
 
-model = xgb.XGBRegressor(learning_rate=0.01, max_depth=3,n_estimators=250, subsample=0.5, early_stopping_rounds=50)
+model = xgb.XGBRegressor(learning_rate=0.3, max_depth=6, n_estimators=100, subsample=1, early_stopping_rounds=50)
 model.fit(X_train, Y_train, eval_set=[(X_train, Y_train)],verbose=True)
 
 list_forecast = []

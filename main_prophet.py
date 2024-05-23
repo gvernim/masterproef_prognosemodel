@@ -175,6 +175,18 @@ df_test_set_2_month = df_imputed_hour.loc[start_test_set:end_test_set_2_month]
 
 df_train, df_test = model_data_preparation.split_data(df_imputed_hour, start_test_set)
 
+print(len(df_train))
+start_date_train = pd.to_datetime('2023-02-01 00:00:00+01:00')
+#6 maanden: pd.to_datetime('2023-07-01 00:00:00+01:00')
+#4 maanden: pd.to_datetime('2023-09-01 00:00:00+01:00')
+#3 maanden: pd.to_datetime('2023-10-01 00:00:00+01:00')
+#2 maanden: pd.to_datetime('2023-11-01 00:00:00+01:00')
+#1 maand: pd.to_datetime('2023-12-01 00:00:00+01:00')
+#2 weken: pd.to_datetime('2023-12-18 00:00:00+01:00')
+#1 week: pd.to_datetime('2023-12-25 00:00:00+01:00')
+df_train = df_train[start_date_train:] #df_train.columns[0],
+print(len(df_train))
+
 #Convert to correct format
 df_train = model_data_prophet.convert_datetime_index_to_prophet_df(df_train)
 
@@ -192,11 +204,17 @@ df_train['solarradiation'] = np.log(1 + df_train['solarradiation'])
 df_train['cloudcover'] = np.log(1 + df_train['cloudcover'])
 df_train['windspeed'] = np.log(1 + df_train['windspeed'])
 df_train['temp'] = np.log(1 + df_train['temp'])
+#df_train['lag1'] = np.log(1 + df_train['lag1'])
+#df_train['lag2'] = np.log(1 + df_train['lag2'])
+#df_train['lag3'] = np.log(1 + df_train['lag3'])
 
 df_test_set['solarradiation'] = np.log(1 + df_test_set['solarradiation'])
 df_test_set['cloudcover'] = np.log(1 + df_test_set['cloudcover'])
 df_test_set['windspeed'] = np.log(1 + df_test_set['windspeed'])
 df_test_set['temp'] = np.log(1 + df_test_set['temp'])
+#df_test_set['lag1'] = np.log(1 + df_test_set['lag1'])
+#df_test_set['lag2'] = np.log(1 + df_test_set['lag2'])
+#df_test_set['lag3'] = np.log(1 + df_test_set['lag3'])
 
 model = Prophet(growth='linear', yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=True, seasonality_mode='additive', seasonality_prior_scale=0.01, changepoint_prior_scale = 0.5)
 #model.add_seasonality(name='daily', period=1, fourier_order=18).add_seasonality(name='yearly', period=365, fourier_order=6) #Set all seasonalities to false
@@ -222,7 +240,7 @@ forecast = model.predict(future)
 
 #Reverse transformation
 model.history['y'] = np.exp(model.history['y']) - 1
-for col in ['yhat', 'yhat_lower', 'yhat_upper']:#, 'solarradiation', 'cloudcover', 'windspeed', 'temp']:
+for col in ['yhat', 'yhat_lower', 'yhat_upper']:#, 'solarradiation', 'cloudcover', 'windspeed', 'temp', 'lag1', 'lag2', 'lag3']:
     forecast[col] = np.exp(forecast[col]) - 1
 
 fig1 = model.plot(forecast)

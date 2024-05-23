@@ -139,9 +139,10 @@ df_col_hour = prepare_data.convert_broken_records_to_nan(df_col_hour, 0, df_date
 
 df_analyze = df_col_hour.loc[start_period:end_period]
 df_features = df_weer.loc[start_period:end_period]
-df_analyze = pd.concat([df_analyze, df_features['solarradiation']], axis=1)
+#df_analyze = pd.concat([df_analyze, df_features['solarradiation']], axis=1)
 df_analyze = pd.concat([df_analyze, df_features['cloudcover']], axis=1)
 df_analyze = pd.concat([df_analyze, df_features['windspeed']], axis=1)
+df_analyze = pd.concat([df_analyze, df_features['humidity']], axis=1)
 df_analyze = pd.concat([df_analyze, df_features['temp']], axis=1)
 
 #Impute missing data
